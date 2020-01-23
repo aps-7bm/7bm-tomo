@@ -1,17 +1,17 @@
 ========
-2bm-tomo
+7bm-tomo
 ========
 
-**tomo** is commad-line-interface for running tomographic scans at beamline `beamline 2bm <https://2bm-docs.readthedocs.io>`_ of the `Advanced Photon Source <https://www.aps.anl.gov/>`_
-
+**tomo** is command-line-interface for running tomographic scans at beamline `beamline 7-BM <https://7bm-docs.readthedocs.io>`_ of the `Advanced Photon Source <https://www.aps.anl.gov/>`_
+This is based on the command-line scripts authored by Francesco De Carlo for use at the 2-BM beamline of the APS.
 
 Installation
 ============
 
 ::
 
-    $ git clone https://github.com/xray-imaging/2bm-tomo.git
-    $ cd 2bm-tomo
+    $ git clone https://github.com/aps-7bm/7bm-tomo.git
+    $ cd 7bm-tomo
     $ python setup.py install
 
 in a prepared virtualenv or as root for system-wide installation.
@@ -41,7 +41,7 @@ to list of all available options::
 Configuration File
 ------------------
 
-Scanning parameters are stored in **tomo2bm.conf**. You can create a template with::
+Scanning parameters are stored in **tomo7bm.conf**. You can create a template with::
 
     $ tomo init
 
