@@ -10,18 +10,17 @@ import shutil
 import pathlib
 from datetime import datetime
 
-from tomo2bm import config, __version__
-from tomo2bm import log
-from tomo2bm import scan
-from tomo2bm import aps2bm
+from tomo7bm import config, __version__
+from tomo7bm import log
+from tomo7bm import scan
 
 
 def init(args):
-
     if not os.path.exists(str(args.config)):
         config.write(args.config)
     else:
         log.error("{0} already exists".format(args.config))
+
 
 def run_status(args):
     scan.dummy_scan(args)
@@ -42,13 +41,11 @@ def run_scan(args):
         args.sample_in_out = 'horizontal'
         scan.fly_scan_mosaic(args)
         log.warning('mosaic scan ')
-
     else:
         log.error('%s is not supported' % args.scan_type)
 
 
 def main():
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', **config.SECTIONS['general']['config'])
     parser.add_argument('--version', action='version',
@@ -95,4 +92,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

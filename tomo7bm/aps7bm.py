@@ -1,30 +1,24 @@
 '''
-    Epics PV definition for Sector 2-BM  
+    Epics PV definition for Sector 7-BM  
     
 '''
 import time
 
 from epics import PV
-from tomo2bm import log
+from tomo7bm import log
 
 TESTING = True
 
-ShutterAisFast = True           # True: use m7 as shutter; False: use Front End Shutter
-
 ShutterA_Open_Value = 1
 ShutterA_Close_Value = 0
-ShutterB_Open_Value = 1
-ShutterB_Close_Value = 0
-
 Recursive_Filter_Type = 'RecursiveAve'
-
 EPSILON = 0.1
 
 
 def wait_pv(pv, wait_val, max_timeout_sec=-1):
-
-    # wait on a pv to be a value until max_timeout (default forever)   
-    # delay for pv to change
+    ''' Wait on a PV to reach a value.
+    max_timeout_sec is an optional timeout time.
+    '''
     time.sleep(.01)
     startTime = time.time()
     while(True):
@@ -39,8 +33,6 @@ def wait_pv(pv, wait_val, max_timeout_sec=-1):
                 if diffTime >= max_timeout_sec:
                     log.error('  *** ERROR: DROPPED IMAGES ***')
                     log.error('  *** wait_pv(%s, %d, %5.2f reached max timeout. Return False' % (pv.pvname, wait_val, max_timeout_sec))
-
-
                     return False
             time.sleep(.01)
         else:
@@ -50,9 +42,9 @@ def wait_pv(pv, wait_val, max_timeout_sec=-1):
 def init_general_PVs(global_PVs, params):
 
     # shutter pv's
-    global_PVs['ShutterA_Open'] = PV('7bma:A_shutter:open.VAL')
-    global_PVs['ShutterA_Close'] = PV('7bma:A_shutter:close.VAL')
-    global_PVs['ShutterA_Move_Status'] = PV('PA:02BM:STA_A_FES_OPEN_PL')
+    global_PVs['ShutterA_Open'] = PV('7bma1:rShtrA:Open')
+    global_PVs['ShutterA_Close'] = PV('7bma1:rShtrA:Close')
+    global_PVs['ShutterA_Move_Status'] = PV('PB:07BM:STA_A_FES_CLSD_PL.VAL')
 
     # Experimment Info
     global_PVs['Sample_Name'] = PV('2bmS1:ExpInfo:SampleName')
@@ -95,21 +87,19 @@ def init_general_PVs(global_PVs, params):
     global_PVs['Horizontal_Scan_End'] = PV('2bmS1:ExpInfo:HorizontalScanEnd.VAL')
     global_PVs['Horizontal_Scan_Step_Size'] = PV('2bmS1:ExpInfo:HorizontalScanStepSize.VAL')
 
-    if params.station == '2-BM-A':
-        log.info('*** Running in station A:')
+    if params.station == '7-BM-B':
+        log.info('*** Running in station 7-BM-B:')
         # Set sample stack motor pv's:
-        global_PVs['Motor_SampleX'] = PV('2bma:m49.VAL')
-        global_PVs['Motor_SampleX_SET'] = PV('2bma:m49.SET')
-        global_PVs['Motor_SampleY'] = PV('2bma:m20.VAL')
-        global_PVs['Motor_SampleRot'] = PV('2bma:m82.VAL') # Aerotech ABR-250
-        global_PVs['Motor_SampleRot_RBV'] = PV('2bma:m82.RBV') # Aerotech ABR-250
-        global_PVs['Motor_SampleRot_Cnen'] = PV('2bma:m82.CNEN') 
-        global_PVs['Motor_SampleRot_Accl'] = PV('2bma:m82.ACCL') 
-        global_PVs['Motor_SampleRot_Stop'] = PV('2bma:m82.STOP') 
-        global_PVs['Motor_SampleRot_Set'] = PV('2bma:m82.SET') 
-        global_PVs['Motor_SampleRot_Velo'] = PV('2bma:m82.VELO') 
-        global_PVs['Motor_Sample_Top_0'] = PV('2bmS1:m2.VAL')
-        global_PVs['Motor_Sample_Top_90'] = PV('2bmS1:m1.VAL') 
+        global_PVs['Motor_SampleX'] = PV('7bmb1:aero:m2.VAL')
+        global_PVs['Motor_SampleX_SET'] = PV('7bmb1:aero:m2.SET')
+        global_PVs['Motor_SampleY'] = PV('7bmb1:aero:m1.VAL')
+        global_PVs['Motor_SampleRot'] = PV('7bmb1:aero:m3.VAL') # Aerotech ABR-250
+        global_PVs['Motor_SampleRot_RBV'] = PV('7bmb1:aero:m3.RBV') # Aerotech ABR-250
+        global_PVs['Motor_SampleRot_Cnen'] = PV('7bmb1:aero:m3.CNEN') 
+        global_PVs['Motor_SampleRot_Accl'] = PV('7bmb1:aero:m3.ACCL') 
+        global_PVs['Motor_SampleRot_Stop'] = PV('7bmb1:aero:m3.STOP') 
+        global_PVs['Motor_SampleRot_Set'] = PV('7bmb1:aero:m3.SET') 
+        global_PVs['Motor_SampleRot_Velo'] = PV('7bmb1:aero:m3.VELO') 
         # Set FlyScan
         global_PVs['Fly_ScanDelta'] = PV('2bma:PSOFly2:scanDelta')
         global_PVs['Fly_StartPos'] = PV('2bma:PSOFly2:startPos')
@@ -121,24 +111,9 @@ def init_general_PVs(global_PVs, params):
         global_PVs['Fly_Calc_Projections'] = PV('2bma:PSOFly2:numTriggers')
         global_PVs['Theta_Array'] = PV('2bma:PSOFly2:motorPos.AVAL')
 
-        global_PVs['Fast_Shutter'] = PV('2bma:m23.VAL')
-        global_PVs['Motor_Focus'] = PV('2bma:m41.VAL')
-        global_PVs['Motor_Focus_Name'] = PV('2bma:m41.DESC')
+        global_PVs['Motor_Focus'] = PV('7bmb1:m38.VAL')
+        global_PVs['Motor_Focus_Name'] = PV('7bmb1:m38.DESC')
         
-    elif params.station == '2-BM-B':   
-        log.info('*** Running in station B:')
-        # Sample stack motor pv's:
-        global_PVs['Motor_SampleX'] = PV('2bmb:m63.VAL')
-        global_PVs['Motor_SampleX_SET'] = PV('2bmb:m63.SET')
-        global_PVs['Motor_SampleY'] = PV('2bmb:m57.VAL') 
-        global_PVs['Motor_SampleRot'] = PV('2bmb:m100.VAL') # Aerotech ABR-150
-        global_PVs['Motor_SampleRot_Accl'] = PV('2bma:m100.ACCL') 
-        global_PVs['Motor_SampleRot_Stop'] = PV('2bma:m100.STOP') 
-        global_PVs['Motor_SampleRot_Set'] = PV('2bma:m100.SET') 
-        global_PVs['Motor_SampleRot_Velo'] = PV('2bma:m100.VELO') 
-        global_PVs['Motor_Sample_Top_0'] = PV('2bmb:m76.VAL') 
-        global_PVs['Motor_Sample_Top_90'] = PV('2bmb:m77.VAL')
-
         # Set CCD stack motor PVs:
         global_PVs['Motor_CCD_Z'] = PV('2bmb:m31.VAL')
 
@@ -160,8 +135,8 @@ def init_general_PVs(global_PVs, params):
         log.error('*** %s is not a valid station' % params.station)
 
     # detector pv's
-    if ((params.camera_ioc_prefix == '2bmbPG3:') or (params.camera_ioc_prefix == '2bmbSP1:')): 
-    
+    valid_camera_prefixes = ['7bm_pg1', '7bm_pg2', '7bm_pg3', '7bm_pg4']
+    if params.camera_ioc_prefix in valid_camera_prefixes:
         # init Point Grey PV's
         # general PV's
         global_PVs['Cam1_SerialNumber'] = PV(params.camera_ioc_prefix + 'cam1:SerialNumber_RBV')

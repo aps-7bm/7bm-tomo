@@ -7,11 +7,11 @@ import time
 import signal
 import numpy as np
 
-from tomo2bm import dm
-from tomo2bm import log
-from tomo2bm import flir
-from tomo2bm import aps2bm
-from tomo2bm import config
+from tomo7bm import dm
+from tomo7bm import log
+from tomo7bm import flir
+from tomo7bm import aps7bm
+from tomo7bm import config
 
 global_PVs = {}
 
@@ -19,68 +19,67 @@ global_PVs = {}
 def fly_scan(params):
 
     tic =  time.time()
-    # aps2bm.update_variable_dict(params)
-    global_PVsx = aps2bm.init_general_PVs(global_PVs, params)
+    # aps7bm.update_variable_dict(params)
+    global_PVsx = aps7bm.init_general_PVs(global_PVs, params)
     try: 
         detector_sn = global_PVs['Cam1_SerialNumber'].get()
         if ((detector_sn == None) or (detector_sn == 'Unknown')):
             log.info('*** The Point Grey Camera with EPICS IOC prefix %s is down' % params.camera_ioc_prefix)
             log.info('  *** Failed!')
-        else:
-            log.info('*** The Point Grey Camera with EPICS IOC prefix %s and serial number %s is on' \
-                        % (params.camera_ioc_prefix, detector_sn))
-            
-            # calling global_PVs['Cam1_AcquireTime'] to replace the default 'ExposureTime' with the one set in the camera
-            params.exposure_time = global_PVs['Cam1_AcquireTime'].get()
-            # calling calc_blur_pixel() to replace the default 'SlewSpeed' 
-            blur_pixel, rot_speed, scan_time = calc_blur_pixel(global_PVs, params)
-            params.slew_speed = rot_speed
+            return
+        log.info('*** The Point Grey Camera with EPICS IOC prefix %s and serial number %s is on' \
+                    % (params.camera_ioc_prefix, detector_sn))
+        
+        # calling global_PVs['Cam1_AcquireTime'] to replace the default 'ExposureTime' with the one set in the camera
+        params.exposure_time = global_PVs['Cam1_AcquireTime'].get()
+        # calling calc_blur_pixel() to replace the default 'SlewSpeed' 
+        blur_pixel, rot_speed, scan_time = calc_blur_pixel(global_PVs, params)
+        params.slew_speed = rot_speed
 
-            # init camera
-            flir.init(global_PVs, params)
+        # init camera
+        flir.init(global_PVs, params)
+
+        log.info(' ')
+        log.info("  *** Running %d sleep scans" % params.sleep_steps)
+        for i in np.arange(0, params.sleep_steps, 1):
+            tic_01 =  time.time()
+            # set sample file name
+            # fname = str('{:03}'.format(global_PVs['HDF1_FileNumber'].get())) + '_' + global_PVs['Sample_Name'].get(as_string=True)
+            params.file_path = global_PVs['HDF1_FilePath'].get(as_string=True)
+            params.file_name = str('{:03}'.format(global_PVs['HDF1_FileNumber'].get())) + '_' + global_PVs['Sample_Name'].get(as_string=True)
+            log.info(' ')
+            log.info('  *** Start scan %d' % i)
+            tomo_fly_scan(global_PVs, params)
+            if ((i+1)!= params.sleep_steps):
+                log.warning('  *** Wait (s): %s ' % str(params.sleep_time))
+                time.sleep(params.sleep_time) 
 
             log.info(' ')
-            log.info("  *** Running %d sleep scans" % params.sleep_steps)
-            for i in np.arange(0, params.sleep_steps, 1):
-                tic_01 =  time.time()
-                # set sample file name
-                # fname = str('{:03}'.format(global_PVs['HDF1_FileNumber'].get())) + '_' + global_PVs['Sample_Name'].get(as_string=True)
-                params.file_path = global_PVs['HDF1_FilePath'].get(as_string=True)
-                params.file_name = str('{:03}'.format(global_PVs['HDF1_FileNumber'].get())) + '_' + global_PVs['Sample_Name'].get(as_string=True)
-                log.info(' ')
-                log.info('  *** Start scan %d' % i)
-                tomo_fly_scan(global_PVs, params)
-                if ((i+1)!= params.sleep_steps):
-                    log.warning('  *** Wait (s): %s ' % str(params.sleep_time))
-                    time.sleep(params.sleep_time) 
+            log.info('  *** Data file: %s' % global_PVs['HDF1_FullFileName_RBV'].get(as_string=True))
+            log.info('  *** Total scan time: %s minutes' % str((time.time() - tic_01)/60.))
+            log.info('  *** Scan Done!')
 
-                log.info(' ')
-                log.info('  *** Data file: %s' % global_PVs['HDF1_FullFileName_RBV'].get(as_string=True))
-                log.info('  *** Total scan time: %s minutes' % str((time.time() - tic_01)/60.))
-                log.info('  *** Scan Done!')
-    
-                dm.scp(global_PVs, params)
+            dm.scp(global_PVs, params)
 
-            log.info('  *** Total loop scan time: %s minutes' % str((time.time() - tic)/60.))
- 
-            log.info('  *** Moving rotary stage to start position')
-            global_PVs["Motor_SampleRot"].put(0, wait=True, timeout=600.0)
-            log.info('  *** Moving rotary stage to start position: Done!')
+        log.info('  *** Total loop scan time: %s minutes' % str((time.time() - tic)/60.))
 
-            global_PVs['Cam1_ImageMode'].put('Continuous')
- 
-            log.info('  *** Done!')
+        log.info('  *** Moving rotary stage to start position')
+        global_PVs["Motor_SampleRot"].put(0, wait=True, timeout=600.0)
+        log.info('  *** Moving rotary stage to start position: Done!')
+
+        global_PVs['Cam1_ImageMode'].put('Continuous')
+
+        log.info('  *** Done!')
 
     except  KeyError:
         log.error('  *** Some PV assignment failed!')
-        pass
 
 
 def fly_scan_vertical(params):
 
     tic =  time.time()
-    # aps2bm.update_variable_dict(params)
-    global_PVsx = aps2bm.init_general_PVs(global_PVs, params)
+    # aps7bm.update_variable_dict(params)
+    global_PVsx = aps7bm.init_general_PVs(global_PVs, params)
     try: 
         detector_sn = global_PVs['Cam1_SerialNumber'].get()
         if ((detector_sn == None) or (detector_sn == 'Unknown')):
@@ -153,8 +152,8 @@ def fly_scan_vertical(params):
 def fly_scan_mosaic(params):
 
     tic =  time.time()
-    # aps2bm.update_variable_dict(params)
-    global_PVsx = aps2bm.init_general_PVs(global_PVs, params)
+    # aps7bm.update_variable_dict(params)
+    global_PVsx = aps7bm.init_general_PVs(global_PVs, params)
     try: 
         detector_sn = global_PVs['Cam1_SerialNumber'].get()
         if ((detector_sn == None) or (detector_sn == 'Unknown')):
@@ -244,8 +243,8 @@ def fly_scan_mosaic(params):
 
 def dummy_scan(params):
     tic =  time.time()
-    # aps2bm.update_variable_dict(params)
-    global_PVsx = aps2bm.init_general_PVs(global_PVs, params)
+    # aps7bm.update_variable_dict(params)
+    global_PVs = aps7bm.init_general_PVs(global_PVs, params)
     try: 
         detector_sn = global_PVs['Cam1_SerialNumber'].get()
         if ((detector_sn == None) or (detector_sn == 'Unknown')):
@@ -269,26 +268,19 @@ def set_image_factor(global_PVs, params):
 def tomo_fly_scan(global_PVs, params):
     log.info(' ')
     log.info('  *** start_scan')
-
+    #Set things up so Ctrl+C will cause scan to clean up.
     def cleanup(signal, frame):
         stop_scan(global_PVs, params)
         sys.exit(0)
     signal.signal(signal.SIGINT, cleanup)
 
-    # if params.has_key('StopTheScan'):
-    #     stop_scan(global_PVs, params)
-    #     return
-
-    # moved to outer loop in main()
-    # init(global_PVs, params)
     set_image_factor(global_PVs, params)
     set_pso(global_PVs, params)
 
-    # fname = global_PVs['HDF1_FileName'].get(as_string=True)
     log.info('  *** File name prefix: %s' % params.file_name)
     flir.set(global_PVs, params) 
 
-    aps2bm.open_shutters(global_PVs, params)
+    aps7bm.open_shutters(global_PVs, params)
     move_sample_in(global_PVs, params)
     theta = flir.acquire(global_PVs, params)
 
@@ -301,7 +293,7 @@ def tomo_fly_scan(global_PVs, params):
     flir.acquire_flat(global_PVs, params)
     move_sample_in(global_PVs, params)
 
-    aps2bm.close_shutters(global_PVs, params)
+    aps7bm.close_shutters(global_PVs, params)
     time.sleep(2)
 
     flir.acquire_dark(global_PVs, params)
@@ -373,19 +365,19 @@ def move_sample_out(global_PVs, params):
         if (params.sample_in_out=="vertical"):
             log.info('      *** *** Move Sample Y out at: %f' % params.sample_out_position)
             global_PVs['Motor_SampleY'].put(str(params.sample_out_position), wait=True, timeout=1000.0)                
-            if aps2bm.wait_pv(global_PVs['Motor_SampleY'], float(params.sample_out_position), 60) == False:
+            if aps7bm.wait_pv(global_PVs['Motor_SampleY'], float(params.sample_out_position), 60) == False:
                 log.error('Motor_SampleY did not move in properly')
                 log.error(global_PVs['Motor_SampleY'].get())
         else:
             if (params.use_furnace):
                 log.info('      *** *** Move Furnace Y out at: %f' % params.furnace_out_position)
                 global_PVs['Motor_FurnaceY'].put(str(params.furnace_out_position), wait=True, timeout=1000.0)
-                if aps2bm.wait_pv(global_PVs['Motor_FurnaceY'], float(params.furnace_out_position), 60) == False:
+                if aps7bm.wait_pv(global_PVs['Motor_FurnaceY'], float(params.furnace_out_position), 60) == False:
                     log.error('Motor_FurnaceY did not move in properly')
                     log.error(global_PVs['Motor_FurnaceY'].get())
             log.info('      *** *** Move Sample X out at: %f' % params.sample_out_position)
             global_PVs['Motor_SampleX'].put(str(params.sample_out_position), wait=True, timeout=1000.0)
-            if aps2bm.wait_pv(global_PVs['Motor_SampleX'], float(params.sample_out_position), 60) == False:
+            if aps7bm.wait_pv(global_PVs['Motor_SampleX'], float(params.sample_out_position), 60) == False:
                 log.error('Motor_SampleX did not move in properly')
                 log.error(global_PVs['Motor_SampleX'].get())
     else:
@@ -399,19 +391,19 @@ def move_sample_in(global_PVs, params):
         if (params.sample_in_out=="vertical"):
             log.info('      *** *** Move Sample Y in at: %f' % params.sample_in_position)
             global_PVs['Motor_SampleY'].put(str(params.sample_in_position), wait=True, timeout=1000.0)                
-            if aps2bm.wait_pv(global_PVs['Motor_SampleY'], float(params.sample_in_position), 60) == False:
+            if aps7bm.wait_pv(global_PVs['Motor_SampleY'], float(params.sample_in_position), 60) == False:
                 log.error('Motor_SampleY did not move in properly')
                 log.error(global_PVs['Motor_SampleY'].get())
         else:
             log.info('      *** *** Move Sample X in at: %f' % params.sample_in_position)
             global_PVs['Motor_SampleX'].put(str(params.sample_in_position), wait=True, timeout=1000.0)
-            if aps2bm.wait_pv(global_PVs['Motor_SampleX'], float(params.sample_in_position), 60) == False:
+            if aps7bm.wait_pv(global_PVs['Motor_SampleX'], float(params.sample_in_position), 60) == False:
                 log.error('Motor_SampleX did not move in properly')
                 log.error(global_PVs['Motor_SampleX'].get())
             if (params.use_furnace):
                 log.info('      *** *** Move Furnace Y in at: %f' % params.furnace_in_position)
                 global_PVs['Motor_FurnaceY'].put(str(params.furnace_in_position), wait=True, timeout=1000.0)
-                if aps2bm.wait_pv(global_PVs['Motor_FurnaceY'], float(params.furnace_in_position), 60) == False:
+                if aps7bm.wait_pv(global_PVs['Motor_FurnaceY'], float(params.furnace_in_position), 60) == False:
                     log.error('Motor_FurnaceY did not move in properly')
                     log.error(global_PVs['Motor_FurnaceY'].get())
     else:
@@ -423,7 +415,7 @@ def stop_scan(global_PVs, params):
         log.error('  *** Stopping the scan: PLEASE WAIT')
         global_PVs['Motor_SampleRot_Stop'].put(1)
         global_PVs['HDF1_Capture'].put(0)
-        aps2bm.wait_pv(global_PVs['HDF1_Capture'], 0)
+        aps7bm.wait_pv(global_PVs['HDF1_Capture'], 0)
         flir.init(global_PVs, params)
         log.error('  *** Stopping scan: Done!')
         ##init(global_PVs, params)
@@ -459,7 +451,7 @@ def set_pso(global_PVs, params):
     log.info(' ')
     log.info('  *** Taxi before starting capture')
     global_PVs['Fly_Taxi'].put(1, wait=True)
-    aps2bm.wait_pv(global_PVs['Fly_Taxi'], 0)
+    aps7bm.wait_pv(global_PVs['Fly_Taxi'], 0)
     log.info('  *** Taxi before starting capture: Done!')
 
 

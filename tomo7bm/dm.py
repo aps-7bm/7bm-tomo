@@ -9,7 +9,7 @@ import subprocess
 import pathlib
 from paramiko import SSHClient
 
-from tomo2bm import log
+from tomo7bm import log
 
 
 def check_remote_directory(remote_server, remote_dir):

@@ -335,19 +335,18 @@ def acquire_dark(global_PVs, params):
 
 
 def checkclose_hdf(global_PVs, params):
-
+    ''' Check if the HDF5 file has closed.  Will wait for data to flush to disk.
+    '''
     buffer_queue = global_PVs['HDF1_QueueSize'].get() - global_PVs['HDF1_QueueFree'].get()
-    # wait_on_hdd = 10
     frate = 55.0
     wait_on_hdd = buffer_queue / frate + 10
-    # wait_on_hdd = (global_PVs['HDF1_QueueSize'].get() - global_PVs['HDF1_QueueFree'].get()) / 55.0 + 10
     log.info('  *** Buffer Queue (frames): %d ' % buffer_queue)
     log.info('  *** Wait HDD (s): %f' % wait_on_hdd)
-    if aps2bm.wait_pv(global_PVs["HDF1_Capture_RBV"], 0, wait_on_hdd) == False: # needs to wait for HDF plugin queue to dump to disk
+    if aps7bm.wait_pv(global_PVs["HDF1_Capture_RBV"], 0, wait_on_hdd) == False: # needs to wait for HDF plugin queue to dump to disk
         global_PVs["HDF1_Capture"].put(0)
         log.info('  *** File was not closed => forced to close')
         log.info('      *** before %d' % global_PVs["HDF1_Capture_RBV"].get())
-        aps2bm.wait_pv(global_PVs["HDF1_Capture_RBV"], 0, 5) 
+        aps7bm.wait_pv(global_PVs["HDF1_Capture_RBV"], 0, 5) 
         log.info('      *** after %d' % global_PVs["HDF1_Capture_RBV"].get())
         if (global_PVs["HDF1_Capture_RBV"].get() == 1):
             log.error('  *** ERROR HDF FILE DID NOT CLOSE; add_theta will fail')
@@ -358,12 +357,11 @@ def add_theta(global_PVs, params, theta_arr):
     log.info('  *** add_theta')
     
     fullname = global_PVs['HDF1_FullFileName_RBV'].get(as_string=True)
+    if theta_arr is None:
+        return
     try:
-        hdf_f = h5py.File(fullname, mode='a')
-        if theta_arr is not None:
-            theta_ds = hdf_f.create_dataset('/exchange/theta', (len(theta_arr),))
-            theta_ds[:] = theta_arr[:]
-        hdf_f.close()
+        with h5py.File(fullname, mode='a') as hdf_f:
+            hdf_f.create_dataset('/exchange/theta', data=theta_arr) 
         log.info('  *** add_theta: Done!')
     except:
         traceback.print_exc(file=sys.stdout)

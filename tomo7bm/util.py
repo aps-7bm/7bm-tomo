@@ -1,6 +1,6 @@
 import numpy as np
 
-from tomo2bm import log
+from tomo7bm import log
 
 
 def theta_step(start, end, proj_number):
@@ -38,8 +38,8 @@ def range_list(value):
 
     raise argparse.ArgumentTypeError("Cannot parse {}".format(value))
 
-def restricted_float(x):
 
+def restricted_float(x):
     x = float(x)
     if x < 0.0 or x >= 1.0:
         raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
