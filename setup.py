@@ -6,7 +6,7 @@ setup(
     #version=__version__,
     author='Alan Kastengren',
     author_email='akastengren@anl.gov',
-    url='https://github.com/aps-7bm/7bm-tomo'
+    url='https://github.com/aps-7bm/7bm-tomo',
     packages=find_packages(),
     include_package_data = True,
     scripts=['bin/tomo'],
