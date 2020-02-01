@@ -44,7 +44,6 @@ def fly_scan(params):
         for i in np.arange(0, params.sleep_steps, 1):
             tic_01 =  time.time()
             # set sample file name
-            # fname = str('{:03}'.format(global_PVs['HDF1_FileNumber'].get())) + '_' + global_PVs['Sample_Name'].get(as_string=True)
             params.file_path = global_PVs['HDF1_FilePath'].get(as_string=True)
             params.file_name = str('{:03}'.format(global_PVs['HDF1_FileNumber'].get())) + '_' + global_PVs['Sample_Name'].get(as_string=True)
             log.info(' ')
@@ -331,14 +330,24 @@ def calc_blur_pixel(global_PVs, params):
 
     angular_range =  params.sample_rotation_end -  params.sample_rotation_start
     angular_step = angular_range/params.num_projections
-    scan_time = params.num_projections * (params.exposure_time + params.ccd_readout)
-    rot_speed = angular_range / scan_time
-    frame_rate = params.num_projections / scan_time
-    blur_delta = params.exposure_time * rot_speed
- 
-   
+
+    min_scan_time = params.num_projections * (params.exposure_time + params.ccd_readout)
+    max_rot_speed = angular_range / min_scan_time
+
+    max_blur_delta = params.exposure_time * max_rot_speed
     mid_detector = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
-    blur_pixel = mid_detector * (1 - np.cos(blur_delta * np.pi /180.))
+    max_blur_pixel = mid_detector * np.sin(max_blur_delta * np.pi /180.)
+    max_frame_rate = params.num_projections / min_scan_time
+
+    rot_speed = max_rot_speed * params.rotation_slow_factor
+    scan_time = angular_range / rot_speed
+
+
+    blur_delta = params.exposure_time * rot_speed  
+    mid_detector = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
+    blur_pixel = mid_detector * np.sin(blur_delta * np.pi /180.)
+
+    frame_rate = params.num_projections / scan_time
 
     log.info(' ')
     log.info('  *** Calc blur pixel')
@@ -348,14 +357,17 @@ def calc_blur_pixel(global_PVs, params):
     log.info("  *** *** Angular Range: %s degrees" % angular_range)
     log.info("  *** *** Camera X size: %s " % global_PVs['Cam1_SizeX'].get())
     log.info(' ')
-    log.info("  *** *** *** *** Angular Step: %f degrees" % angular_step)   
-    log.info("  *** *** *** *** Scan Time: %f s" % scan_time) 
-    log.info("  *** *** *** *** Rot Speed: %f degrees/s" % rot_speed)
-    log.info("  *** *** *** *** Frame Rate: %f fps" % frame_rate)
-    log.info("  *** *** *** *** Max Blur: %f pixels" % blur_pixel)
+    log.info("  *** *** *** *** Angular Step: %4.2f degrees" % angular_step)   
+    log.info("  *** *** *** *** Scan Time: %4.2f (min %4.2f) s" % (scan_time, min_scan_time))
+    log.info("  *** *** *** *** Rot Speed: %4.2f (max %4.2f) degrees/s" % (rot_speed, max_rot_speed))
+    log.info("  *** *** *** *** Frame Rate: %4.2f (max %4.2f) fps" % (frame_rate, max_frame_rate))
+    if (blur_pixel > 1):
+        log.error("  *** *** *** *** Blur: %4.2f (max %4.2f) pixels" % (blur_pixel, max_blur_pixel))
+    else:
+        log.info("  *** *** *** *** Blur: %4.2f (max %4.2f) pixels" % (blur_pixel, max_blur_pixel))
     log.info('  *** Calc blur pixel: Done!')
     
-    return blur_pixel, rot_speed, scan_time
+    return rot_speed
 
 
 def move_sample_out(global_PVs, params):

@@ -21,7 +21,7 @@ def wait_pv(pv, wait_val, max_timeout_sec=-1):
     '''
     time.sleep(.01)
     startTime = time.time()
-    while(True):
+    while True:
         pv_val = pv.get()
         if type(pv_val) == float:
             if abs(pv_val - wait_val) < EPSILON:
@@ -39,7 +39,11 @@ def wait_pv(pv, wait_val, max_timeout_sec=-1):
             return True
 
 
-def init_general_PVs(global_PVs, params):
+def init_general_PVs(params):
+    '''Initialize epics PV objects.
+    '''
+    global_PVs = {}
+    log.info('Creating PV objects.')
 
     # shutter pv's
     global_PVs['ShutterA_Open'] = PV('7bma1:rShtrA:Open')
@@ -47,46 +51,50 @@ def init_general_PVs(global_PVs, params):
     global_PVs['ShutterA_Move_Status'] = PV('PB:07BM:STA_A_FES_CLSD_PL.VAL')
 
     # Experimment Info
-    global_PVs['Sample_Name'] = PV('2bmS1:ExpInfo:SampleName')
-    global_PVs['User_Badge'] = PV('2bmS1:ExpInfo:UserBadge.VAL')
-    global_PVs['User_Email'] = PV('2bmS1:ExpInfo:UserEmail.VAL')
-    global_PVs['User_Institution'] = PV('2bmS1:ExpInfo:UserInstitution.VAL')
-    global_PVs['Proposal_Number'] = PV('2bmS1:ExpInfo:ProposalNumber.VAL')
-    global_PVs['Proposal_Title'] = PV('2bmS1:ExpInfo:ProposalTitle.VAL')
-    global_PVs['Sample_Description'] = PV('2bmS1:ExpInfo:SampleDescription.VAL')
-    global_PVs['User_Info_Update'] = PV('2bmS1:ExpInfo:UserInfoUpdate.VAL')
-    global_PVs['Lens_Magnification'] = PV('2bmS1:ExpInfo:LensMagnification.VAL')
-    global_PVs['Scintillator_Type'] = PV('2bmS1:ExpInfo:ScintillatorType.VAL')
-    global_PVs['Filters'] = PV('2bmS1:ExpInfo:Filters.VAL')
-    global_PVs['File_Name'] = PV('2bmS1:ExpInfo:FileName.VAL')
-    global_PVs['Station'] = PV('2bmS1:ExpInfo:Station.VAL')
-    global_PVs['Camera_IOC_Prefix'] = PV('2bmS1:ExpInfo:CameraIOCPrefix.VAL')
-    global_PVs['Remote_Analysis_Dir'] = PV('2bmS1:ExpInfo:RemoteAnalysisDir.VAL')
-    global_PVs['User_Last_Name'] = PV('2bmS1:ExpInfo:UserLastName.VAL')
-    global_PVs['Experiment_Year_Month'] = PV('2bmS1:ExpInfo:ExperimentYearMonth.VAL')
-    global_PVs['Use_Furnace'] = PV('2bmS1:ExpInfo:UseFurnace.VAL')
-    global_PVs['White_Field_Motion'] = PV('2bmS1:ExpInfo:WhiteFieldMotion.VAL')
-    global_PVs['Remote_Data_Trasfer'] = PV('2bmS1:ExpInfo:RemoteDataTrasfer.VAL')
-    global_PVs['Scan_Type'] = PV('2bmS1:ExpInfo:ScanType.VAL')
-    global_PVs['Num_Projections'] = PV('2bmS1:ExpInfo:NumProjections.VAL')
-    global_PVs['Num_White_Images'] = PV('2bmS1:ExpInfo:NumWhiteImages.VAL')
-    global_PVs['Num_Dark_Images'] = PV('2bmS1:ExpInfo:NumDarkImages.VAL')
-    global_PVs['Scintillator_Thickness'] = PV('2bmS1:ExpInfo:ScintillatorThickness.VAL')
-    global_PVs['Sample_Detector_Distance'] = PV('2bmS1:ExpInfo:SampleDetectorDistance.VAL')
-    global_PVs['Sample_In_Position'] = PV('2bmS1:ExpInfo:SampleInPosition.VAL')
-    global_PVs['Sample_Out_Position'] = PV('2bmS1:ExpInfo:SampleOutPosition.VAL')
-    global_PVs['Sample_Rotation_Start'] = PV('2bmS1:ExpInfo:SampleRotationStart.VAL')
-    global_PVs['Sample_Rotation_End'] = PV('2bmS1:ExpInfo:SampleRotationEnd.VAL')
-    global_PVs['Furnace_In_Position'] = PV('2bmS1:ExpInfo:FurnaceInPosition.VAL')
-    global_PVs['Furnace_Out_Position'] = PV('2bmS1:ExpInfo:FurnaceOutPosition.VAL')
-    global_PVs['Sleep_Time'] = PV('2bmS1:ExpInfo:SleepTime.VAL')
-    global_PVs['Vertical_Scan_Start'] = PV('2bmS1:ExpInfo:VerticalScanStart.VAL')
-    global_PVs['Vertical_Scan_End'] = PV('2bmS1:ExpInfo:VerticalScanEnd.VAL')
-    global_PVs['Vertical_Scan_Step_Size'] = PV('2bmS1:ExpInfo:VerticalScanStepSize.VAL')
-    global_PVs['Horizontal_Scan_Start'] = PV('2bmS1:ExpInfo:HorizontalScanStart.VAL')
-    global_PVs['Horizontal_Scan_End'] = PV('2bmS1:ExpInfo:HorizontalScanEnd.VAL')
-    global_PVs['Horizontal_Scan_Step_Size'] = PV('2bmS1:ExpInfo:HorizontalScanStepSize.VAL')
+    global_PVs['Sample_Name'] = PV('7bmb1:ExpInfo:SampleName')
+    global_PVs['Sample_Description'] = PV('7bmb1:ExpInfo:SampleDescription.VAL')
+    global_PVs['User_Badge'] = PV('7bmb1:ExpInfo:UserBadge.VAL')
+    global_PVs['User_Email'] = PV('7bmb1:ExpInfo:UserEmail.VAL')
+    global_PVs['User_Institution'] = PV('7bmb1:ExpInfo:UserInstitution.VAL')
+    global_PVs['Proposal_Number'] = PV('7bmb1:ExpInfo:ProposalNumber.VAL')
+    global_PVs['Proposal_Title'] = PV('7bmb1:ExpInfo:ProposalTitle.VAL')
+    global_PVs['User_Info_Update'] = PV('7bmb1:ExpInfo:UserInfoUpdate.VAL')
+    global_PVs['Lens_Magnification'] = PV('7bmb1:ExpInfo:LensMagnification.VAL')
+    global_PVs['Scintillator_Type'] = PV('7bmb1:ExpInfo:ScintillatorType.VAL')
+    global_PVs['Scintillator_Thickness'] = PV('7bmb1:ExpInfo:ScintillatorThickness.VAL')
+    global_PVs['Camera_IOC_Prefix'] = PV('7bmb1:ExpInfo:CameraIOCPrefix.VAL')
+    global_PVs['PixelSizeMicrons'] = PV('7bmb1:ExpInfo:PixelSizeum.VAL')
+    global_PVs['Filters'] = PV('7bmb1:ExpInfo:Filters.VAL')
+    global_PVs['File_Name'] = PV('7bmb1:ExpInfo:FileName.VAL')
+    global_PVs['Station'] = PV('7bmb1:ExpInfo:Station.VAL')
+    global_PVs['Remote_Data_Trasfer'] = PV('7bmb1:ExpInfo:RemoteDataTrasfer.VAL')
+    global_PVs['Remote_Analysis_Dir'] = PV('7bmb1:ExpInfo:RemoteAnalysisDir.VAL')
+    global_PVs['User_Last_Name'] = PV('7bmb1:ExpInfo:UserLastName.VAL')
+    global_PVs['Experiment_Year_Month'] = PV('7bmb1:ExpInfo:ExperimentYearMonth.VAL')
+    global_PVs['Use_Furnace'] = PV('7bmb1:ExpInfo:UseFurnace.VAL')
+    global_PVs['White_Field_Motion'] = PV('7bmb1:ExpInfo:WhiteFieldMotion.VAL')
+    global_PVs['Num_White_Images'] = PV('7bmb1:ExpInfo:NumWhiteImages.VAL')
+    global_PVs['Sample_Detector_Distance'] = PV('7bmb1:ExpInfo:SampleDetectorDistance.VAL')
+    global_PVs['Sample_Out_Position_Y'] = PV('7bmb1:ExpInfo:SampleOutPositionY.VAL')
+    global_PVs['Sample_Out_Position_X'] = PV('7bmb1:ExpInfo:SampleOutPositionX.VAL')
+    global_PVs['Num_Projections'] = PV('7bmb1:ExpInfo:NumProjections.VAL')
+    global_PVs['Sample_Rotation_Start'] = PV('7bmb1:ExpInfo:SampleRotationStart.VAL')
+    global_PVs['Sample_Rotation_End'] = PV('7bmb1:ExpInfo:SampleRotationEnd.VAL')
+    global_PVs['Sample_Rotation_Speed'] = PV('7bmb1:ExpInfo:SampleRotationSpeed.VAL')
+    global_PVs['Sample_Retrace_Speed'] = PV('7bmb1:ExpInfo:RetraceSpeed.VAL')
+    global_PVs['Furnace_In_Position'] = PV('7bmb1:ExpInfo:FurnaceInPosition.VAL')
+    global_PVs['Furnace_Out_Position'] = PV('7bmb1:ExpInfo:FurnaceOutPosition.VAL')
+    global_PVs['Scan_Type'] = PV('7bmb1:ExpInfo:ScanType.VAL')
+    global_PVs['Sleep_Time'] = PV('7bmb1:ExpInfo:SleepTime.VAL')
+    global_PVs['Vertical_Scan_Start'] = PV('7bmb1:ExpInfo:VerticalScanStart.VAL')
+    global_PVs['Vertical_Scan_End'] = PV('7bmb1:ExpInfo:VerticalScanEnd.VAL')
+    global_PVs['Vertical_Scan_Step_Size'] = PV('7bmb1:ExpInfo:VerticalScanStepSize.VAL')
+    global_PVs['Horizontal_Scan_Start'] = PV('7bmb1:ExpInfo:HorizontalScanStart.VAL')
+    global_PVs['Horizontal_Scan_End'] = PV('7bmb1:ExpInfo:HorizontalScanEnd.VAL')
+    global_PVs['Horizontal_Scan_Step_Size'] = PV('7bmb1:ExpInfo:HorizontalScanStepSize.VAL')
 
+    params.station = global_PVs['Station'].get(as_string=True)
+    log.info('Running in station {:s}.'.format(params.station))
     if params.station == '7-BM-B':
         log.info('*** Running in station 7-BM-B:')
         # Set sample stack motor pv's:
@@ -100,43 +108,19 @@ def init_general_PVs(global_PVs, params):
         global_PVs['Motor_SampleRot_Stop'] = PV('7bmb1:aero:m3.STOP') 
         global_PVs['Motor_SampleRot_Set'] = PV('7bmb1:aero:m3.SET') 
         global_PVs['Motor_SampleRot_Velo'] = PV('7bmb1:aero:m3.VELO') 
-        # Set FlyScan
-        global_PVs['Fly_ScanDelta'] = PV('2bma:PSOFly2:scanDelta')
-        global_PVs['Fly_StartPos'] = PV('2bma:PSOFly2:startPos')
-        global_PVs['Fly_EndPos'] = PV('2bma:PSOFly2:endPos')
-        global_PVs['Fly_SlewSpeed'] = PV('2bma:PSOFly2:slewSpeed')
-        global_PVs['Fly_Taxi'] = PV('2bma:PSOFly2:taxi')
-        global_PVs['Fly_Run'] = PV('2bma:PSOFly2:fly')
-        global_PVs['Fly_ScanControl'] = PV('2bma:PSOFly2:scanControl')
-        global_PVs['Fly_Calc_Projections'] = PV('2bma:PSOFly2:numTriggers')
-        global_PVs['Theta_Array'] = PV('2bma:PSOFly2:motorPos.AVAL')
-
         global_PVs['Motor_Focus'] = PV('7bmb1:m38.VAL')
         global_PVs['Motor_Focus_Name'] = PV('7bmb1:m38.DESC')
-        
-        # Set CCD stack motor PVs:
-        global_PVs['Motor_CCD_Z'] = PV('2bmb:m31.VAL')
-
-        # Set FlyScan
-        global_PVs['Fly_ScanDelta'] = PV('2bmb:PSOFly:scanDelta')
-        global_PVs['Fly_StartPos'] = PV('2bmb:PSOFly:startPos')
-        global_PVs['Fly_EndPos'] = PV('2bmb:PSOFly:endPos')
-        global_PVs['Fly_SlewSpeed'] = PV('2bmb:PSOFly:slewSpeed')
-        global_PVs['Fly_Taxi'] = PV('2bmb:PSOFly:taxi')
-        global_PVs['Fly_Run'] = PV('2bmb:PSOFly:fly')
-        global_PVs['Fly_ScanControl'] = PV('2bmb:PSOFly:scanControl')
-        global_PVs['Fly_Calc_Projections'] = PV('2bmb:PSOFly:numTriggers')
-        global_PVs['Theta_Array'] = PV('2bmb:PSOFly:motorPos.AVAL')
-
-        global_PVs['Motor_Focus'] = PV('2bmb:m78.VAL')
-        global_PVs['Motor_Focus_Name'] = PV('2bmb:m78.DESC')
-
     else:
         log.error('*** %s is not a valid station' % params.station)
 
     # detector pv's
-    valid_camera_prefixes = ['7bm_pg1', '7bm_pg2', '7bm_pg3', '7bm_pg4']
+    valid_camera_prefixes = ['7bm_pg1:', '7bm_pg2:', '7bm_pg3:', '7bm_pg4:']
+    params.camera_ioc_prefix = global_PVs['Camera_IOC_Prefix'].get(as_string=True)
+    if params.camera_ioc_prefix[-1] != ':':
+        params.camera_ioc_prefix = params.camera_ioc_prefix + ':'
+    log.info('Using camera IOC with prefix {:s}'.format(params.camera_ioc_prefix))
     if params.camera_ioc_prefix in valid_camera_prefixes:
+        update_pixel_size(global_PVs, params)
         # init Point Grey PV's
         # general PV's
         global_PVs['Cam1_SerialNumber'] = PV(params.camera_ioc_prefix + 'cam1:SerialNumber_RBV')
@@ -202,10 +186,6 @@ def init_general_PVs(global_PVs, params):
         global_PVs['Proc1_Enable_Low_Clip'] = PV(params.camera_ioc_prefix + 'Proc1:EnableLowClip')
         global_PVs['Proc1_Enable_High_Clip'] = PV(params.camera_ioc_prefix + 'Proc1:EnableHighClip')
 
-
-    if (params.camera_ioc_prefix == '2bmbPG3:'):
-        global_PVs['Cam1_FrameRateOnOff'] = PV(params.camera_ioc_prefix + 'cam1:FrameRateOnOff')
-
     elif (params.camera_ioc_prefix == '2bmbSP1:'):
         global_PVs['Cam1_AcquireTimeAuto'] = PV(params.camera_ioc_prefix + 'cam1:AcquireTimeAuto')
         global_PVs['Cam1_FrameRateOnOff'] = PV(params.camera_ioc_prefix + 'cam1:FrameRateEnable')
@@ -255,4 +235,15 @@ def close_shutters(global_PVs, params):
         global_PVs['ShutterA_Close'].put(1, wait=True)
         wait_pv(global_PVs['ShutterA_Move_Status'], ShutterA_Close_Value)
         log.info('  *** close_shutter A: Done!')
+
+
+def update_pixel_size(global_PVs, params):
+    '''Uses the camera model number to set the correct pixel size.
+    '''
+    if params.camera_ioc_prefix in ['7bm_pg1:', '7bm_pg2:', '7bm_pg3:']:
+        global_PVs['PixelSizeMicrons'].put(5.86, wait=True)
+        log.info('Camera pixel size for this camera = 5.86 microns.')
+    elif params.camera_ioc_prefix == '7bm_pg4:':
+        global_PVs['PixelSizeMicrons'].put(3.45, wait=True)
+        log.info('Camera pixel size for this camera = 3.45 microns.')
 
