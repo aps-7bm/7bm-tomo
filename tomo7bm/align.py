@@ -16,13 +16,13 @@ from datetime import datetime
 import pathlib
 import signal
 
-from tomo2bm import log
-from tomo2bm import flir
-from tomo2bm import aps2bm
-from tomo2bm import config
-from tomo2bm import util
+from tomo7bm import log
+from tomo7bm import flir
+from tomo7bm import aps7bm
+from tomo7bm import config
+from tomo7bm import util
 
-import matplotlib.pylab as pl
+#import matplotlib.pylab as pl
 import matplotlib.widgets as wdg
 
 
@@ -36,8 +36,8 @@ global variableDict
 def find_resolution(params):
 
     log.info('find resolution')
-    global_PVs = aps2bm.init_general_PVs(params)
-    aps2bm.user_info_update(global_PVs, params)
+    global_PVs = aps7bm.init_general_PVs(params)
+    aps7bm.user_info_update(global_PVs, params)
 
     params.file_name = None # so we don't run the flir._setup_hdf_writer 
     try: 
@@ -65,7 +65,7 @@ def find_resolution(params):
             sphere_1 = normalize(flir.take_image(global_PVs, params), white_field, dark_field)
 
             log.info('  *** moving X stage back to %f mm position' % (params.sample_in_position))
-            aps2bm.move_sample_in(global_PVs, params)
+            aps7bm.move_sample_in(global_PVs, params)
 
             shift = register_translation(sphere_0, sphere_1, 10)
 
@@ -84,7 +84,7 @@ def find_resolution(params):
 
 def find_roll_and_rotation_axis_location(params):
 
-    global_PVs = aps2bm.init_general_PVs(params)
+    global_PVs = aps7bm.init_general_PVs(params)
 
     params.file_name = None # so we don't run the flir._setup_hdf_writer 
 

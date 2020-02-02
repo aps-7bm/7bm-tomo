@@ -31,6 +31,10 @@ SECTIONS['general'] = {
     'verbose': {
         'default': False,
         'help': 'Verbose output',
+        'action': 'store_true'},
+    'update-from-PVs': {
+        'default': False,
+        'help': 'If True, use PV values to update pertinent parameters.',
         'action': 'store_true'}
         }
 
@@ -71,17 +75,17 @@ SECTIONS['experiment-info'] = {
 
 SECTIONS['detector'] = {
     'camera-ioc-prefix':{
-        'choices': ['7bm_pg1', '7bm_pg2', '7bm_pg3', '7bm_pg4']
-        'default': '2bmbSP1:',
+        'choices': ['7bm_pg1:', '7bm_pg2:', '7bm_pg3:', '7bm_pg4:'],
+        'default': '7bm_pg4:',
         'type': str,
-        'help': "FLIR: 2bmbSP1:, PointGrey: 7bm_pg#"},
+        'help': "FLIR: 2bmbSP1:, PointGrey: 7bm_pg#:"},
     'exposure-time': {
         'default': 0.1,
         'type': float,
         'help': " "},
     'ccd-readout': {
-        'choices': [0.006, 0.01],
-        'default': 0.01,
+        'choices': [0.,0.006, 0.01],
+        'default': 0.0,
         'type': float,
         # 'help': "8bit: 0.006; 16-bit: 0.01"},
         'help': " "},
@@ -162,18 +166,14 @@ SECTIONS['sample-motion'] = {
         'default': 180,
         'type': float,
         'help': " "},
-    'sample-in-position': {
+    'sample-out-x': {
         'default': 0,
         'type': float,
-        'help': "Sample position during data collection"},
-    'sample-out-position': {
+        'help': "Sample x position for white field scans."},
+    'sample-out-y': {
         'default': 1,
         'type': float,
-        'help': "Sample position for white field images"},
-    'sample-in-out': {
-        'default': 'horizontal',
-        'choices': ['horizontal', 'vertical'],
-        'help': "which stage is used to take the white field"},
+        'help': "Sample y position for white field scans."},
     'sample-move-freeze': {
         'default': False,
         'action': 'store_true',
@@ -281,6 +281,19 @@ SECTIONS['stage-settings'] = {
         'default':  1.0,
         'type': float,
         'help': " "}, 
+    'retrace-speed': {
+        'default':  30.0,
+        'type': float,
+        'help': "Speed the rotation motor moves when not scanning."}, 
+    'auto-slew-speed': {
+        'choices': ['both', 'blur', 'acquisition', 'manual'],
+        'default': 'both',
+        'type': str,
+        'help': 'Should slew speed be calculated based on blur, data throughput and exposure, both, or use the manual value given in the config.'},
+    'permitted-blur': {
+        'default':  0.5,
+        'type': float,
+        'help': "If slew speed is calculated based on blur, how much blur is allowable."}, 
     'rotation-slow-factor': {
         'default': 1.0,
         'type': util.restricted_float,

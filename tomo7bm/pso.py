@@ -78,7 +78,7 @@ class AerotechDriver():
             window_start = window_end - range_length
         #Remember, the window settings must be in encoder counts
         self.asynRec.put('PSOWINDOW %s 1 RANGE %d,%d' % (self.axis, window_start-5, window_end+5), wait=True, timeout=300.0)
-        print('PSOWINDOW %s 1 RANGE %d,%d' % (self.axis, window_start, window_end))
+        #print('PSOWINDOW %s 1 RANGE %d,%d' % (self.axis, window_start, window_end))
         #Arm the PSO
         time.sleep(0.05)
         self.asynRec.put('PSOCONTROL %s ARM' % self.axis, wait=True, timeout=300.0)
@@ -90,6 +90,7 @@ class AerotechDriver():
         '''Cleanup activities after a PSO scan. 
         Turns off PSO and sets the speed back to default.
         '''
+        log.info('Cleaning up PSO programming and setting to retrace speed.')
         self.asynRec.put('PSOWINDOW %s OFF' % self.axis, wait=True)
         self.asynRec.put('PSOCONTROL %s OFF' % self.axis, wait=True)
         self.motor.put('VELO', self.default_speed, wait=True)
@@ -110,6 +111,7 @@ def _compute_senses():
     global user_direction
     user_direction = 1 if req_end > req_start else -1
     #Figure out overall sense: +1 if motion in + encoder direction, -1 otherwise
+    global overall_sense
     overall_sense = user_direction * motor_dir * encoderDir
 
     
@@ -129,9 +131,9 @@ def compute_positions():
                                     / (num_points - 1) * driver.encoder_multiply)
     delta_encoder_counts = round(raw_delta_encoder_counts)
     if abs(raw_delta_encoder_counts - delta_encoder_counts) > 1e-4:
-        log.warning('Requested scan would have used a non-integer number of encoder pulses.')
-        log.warning('Calculated # of encoder pulses per step = {0:9.4f}'.format(raw_delta_encoder_counts))
-        log.warning('Instead, using {0:d}'.format(delta_encoder_counts))
+        log.warning('  *** *** *** Requested scan would have used a non-integer number of encoder pulses.')
+        log.warning('  *** *** *** Calculated # of encoder pulses per step = {0:9.4f}'.format(raw_delta_encoder_counts))
+        log.warning('  *** *** *** Instead, using {0:d}'.format(delta_encoder_counts))
     delta_egu = delta_encoder_counts / driver.encoder_multiply
                 
     #Make taxi distance an integral number of measurement deltas >= accel distance
@@ -154,29 +156,62 @@ def set_default_speed(speed):
 def program_PSO():
     '''Cause the Aerotech driver to program its PSO.
     '''
-    log.info('Programming motor')
-    driver.fprogram_PSO()
+    log.info('  *** *** Programming motor')
+    driver.program_PSO()
 
 
 def cleanup_PSO():
-    log.info('Cleanup: turn off PSO and reset speed.')
     driver.cleanup_PSO()
 
 def log_info():
-    log.warning('Positions for fly scan.')
-    log.info('Motor start = {0:f}'.format(req_start))
-    log.info('Motor end = {0:f}'.format(actual_end))
-    log.info('# Points = {0:4d}'.format(num_points))
-    log.info('Degrees per image = {0:f}'.format(delta_egu))
-    log.info('Encoder counts per image = {0:d}'.format(delta_encoder_counts))
+    log.warning('  *** *** Positions for fly scan.')
+    log.info('  *** *** *** Motor start = {0:f}'.format(req_start))
+    log.info('  *** *** *** Motor end = {0:f}'.format(actual_end))
+    log.info('  *** *** *** # Points = {0:4d}'.format(num_points))
+    log.info('  *** *** *** Degrees per image = {0:f}'.format(delta_egu))
+    log.info('  *** *** *** Encoder counts per image = {0:d}'.format(delta_encoder_counts))
 
 
-def pso_init(in_req_start, in_req_end, in_num_points, in_speed):
+def pso_init(params):
     '''Initialize calculations.
     '''
     global req_start, req_end, num_points, speed
-    req_start = in_req_start
-    req_end = in_req_end
-    num_points = in_num_points
-    speed = in_speed
+    req_start = params.sample_rotation_start
+    req_end = params.sample_rotation_end
+    num_points = params.num_projections
+    speed = params.slew_speed
+    driver.default_speed = params.retrace_speed
     compute_positions()
+
+
+def fly(global_PVs, params):
+    angular_range =  params.sample_rotation_end -  params.sample_rotation_start
+    flyscan_time_estimate = angular_range / params.slew_speed
+    log.warning('  *** Fly Scan Time Estimate: %4.2f minutes' % (flyscan_time_estimate/60.))
+    #Trigger fly motion to start.  Don't wait for it, since it takes time.
+    start_time = time.time()
+    driver.motor.move(actual_end, wait=False)
+    time.sleep(1)
+    old_image_counter = 0
+    expected_framerate = driver.motor.slew_speed / delta_egu
+    #Monitor the motion to make sure we aren't stuck.
+    while time.time() - start_time < 1.5 * flyscan_time_estimate:
+        time.sleep(1)
+        if not driver.motor.moving:
+            log.info('  *** *** Sample rotation stopped moving.')
+            if abs(driver.motor.drive - actual_end) > 1e-2:
+                log.error('  *** *** Sample rotation ended but not at right position!')
+                raise ValueError
+            else:
+                log.info('  *** *** Stopped at correct position.')
+                break
+        #Make sure we're actually getting frames.
+        current_image_counter = global_PVs['Cam1_NumImagesCounter'].get()
+        if current_image_counter - old_image_counter < 0.2 * expected_framerate:
+            log.error('  *** *** Not collecting frames!')
+            raise ValueError 
+        else:
+            old_image_counter = current_image_counter
+    else:
+        log.warning('  *** *** Fly motion timed out!')
+        raise ValueError

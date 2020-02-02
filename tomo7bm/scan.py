@@ -12,42 +12,44 @@ from tomo7bm import log
 from tomo7bm import flir
 from tomo7bm import aps7bm
 from tomo7bm import config
+from tomo7bm import pso
 
 global_PVs = {}
 
 
+def check_camera_IOC(global_PVs, params):
+    detector_sn = global_PVs['Cam1_SerialNumber'].get()
+    if ((detector_sn == None) or (detector_sn == 'Unknown')):
+        log.info('*** The Point Grey Camera with EPICS IOC prefix %s is down' % params.camera_ioc_prefix)
+        log.info('  *** Failed!')
+        return False
+    log.info('*** The Point Grey Camera with EPICS IOC prefix %s and serial number %s is on' \
+                % (params.camera_ioc_prefix, detector_sn))
+    return True
+
+
 def fly_scan(params):
-
+    '''Perform potentially repeated fly scan.
+    '''
     tic =  time.time()
-    # aps7bm.update_variable_dict(params)
-    global_PVsx = aps7bm.init_general_PVs(global_PVs, params)
+    global_PVs = aps7bm.init_general_PVs(params)
     try: 
-        detector_sn = global_PVs['Cam1_SerialNumber'].get()
-        if ((detector_sn == None) or (detector_sn == 'Unknown')):
-            log.info('*** The Point Grey Camera with EPICS IOC prefix %s is down' % params.camera_ioc_prefix)
-            log.info('  *** Failed!')
-            return
-        log.info('*** The Point Grey Camera with EPICS IOC prefix %s and serial number %s is on' \
-                    % (params.camera_ioc_prefix, detector_sn))
-        
-        # calling global_PVs['Cam1_AcquireTime'] to replace the default 'ExposureTime' with the one set in the camera
-        params.exposure_time = global_PVs['Cam1_AcquireTime'].get()
-        # calling calc_blur_pixel() to replace the default 'SlewSpeed' 
-        blur_pixel, rot_speed, scan_time = calc_blur_pixel(global_PVs, params)
-        params.slew_speed = rot_speed
-
+        if not check_camera_IOC(global_PVs, params):
+            return False
+        # Set the slew speed, possibly based on blur and acquisition parameters
+        set_slew_speed(global_PVs, params)
         # init camera
         flir.init(global_PVs, params)
 
         log.info(' ')
         log.info("  *** Running %d sleep scans" % params.sleep_steps)
-        for i in np.arange(0, params.sleep_steps, 1):
+        for i in np.arange(params.sleep_steps):
             tic_01 =  time.time()
             # set sample file name
             params.file_path = global_PVs['HDF1_FilePath'].get(as_string=True)
             params.file_name = str('{:03}'.format(global_PVs['HDF1_FileNumber'].get())) + '_' + global_PVs['Sample_Name'].get(as_string=True)
             log.info(' ')
-            log.info('  *** Start scan %d' % i)
+            log.info('  *** Start scan {:d} of {:d}'.format(int(i+1), int(params.sleep_steps)))
             tomo_fly_scan(global_PVs, params)
             if ((i+1)!= params.sleep_steps):
                 log.warning('  *** Wait (s): %s ' % str(params.sleep_time))
@@ -58,20 +60,20 @@ def fly_scan(params):
             log.info('  *** Total scan time: %s minutes' % str((time.time() - tic_01)/60.))
             log.info('  *** Scan Done!')
 
-            dm.scp(global_PVs, params)
+            #dm.scp(global_PVs, params)
 
         log.info('  *** Total loop scan time: %s minutes' % str((time.time() - tic)/60.))
 
         log.info('  *** Moving rotary stage to start position')
         global_PVs["Motor_SampleRot"].put(0, wait=True, timeout=600.0)
         log.info('  *** Moving rotary stage to start position: Done!')
-
         global_PVs['Cam1_ImageMode'].put('Continuous')
-
         log.info('  *** Done!')
-
     except  KeyError:
         log.error('  *** Some PV assignment failed!')
+    except Exception as ee:
+        stop_scan(global_PVs, params)
+        log.info('  Exception recorded: ' + str(ee))
 
 
 def fly_scan_vertical(params):
@@ -258,7 +260,6 @@ def dummy_scan(params):
 
 
 def set_image_factor(global_PVs, params):
-
     if (params.recursive_filter == False):
         params.recursive_filter_n_images = 1 
     return params.recursive_filter_n_images
@@ -272,198 +273,161 @@ def tomo_fly_scan(global_PVs, params):
         stop_scan(global_PVs, params)
         sys.exit(0)
     signal.signal(signal.SIGINT, cleanup)
-
     set_image_factor(global_PVs, params)
-    set_pso(global_PVs, params)
-
+    pso.pso_init(params)
+    pso.program_PSO()
+    log.info('  *** *** PSO programming DONE!')
     log.info('  *** File name prefix: %s' % params.file_name)
     flir.set(global_PVs, params) 
 
-    aps7bm.open_shutters(global_PVs, params)
-    move_sample_in(global_PVs, params)
-    theta = flir.acquire(global_PVs, params)
-
-    theta_end =  global_PVs['Motor_SampleRot_RBV'].get()
-    if (0 < theta_end < 180.0):
-        # print('\x1b[2;30;41m' + '  *** Rotary Stage ERROR. Theta stopped at: ***' + theta_end + '\x1b[0m')
-        log.error('  *** Rotary Stage ERROR. Theta stopped at: %s ***' % str(theta_end))
-
     move_sample_out(global_PVs, params)
+    aps7bm.open_shutters(global_PVs, params)
     flir.acquire_flat(global_PVs, params)
-    move_sample_in(global_PVs, params)
-
     aps7bm.close_shutters(global_PVs, params)
-    time.sleep(2)
-
+    time.sleep(0.5)
     flir.acquire_dark(global_PVs, params)
+    move_sample_in(global_PVs, params)
+    aps7bm.open_shutters(global_PVs, params)
+    theta = flir.acquire(global_PVs, params)
+    aps7bm.close_shutters(global_PVs, params)
+    time.sleep(0.5)
     flir.checkclose_hdf(global_PVs, params)
-    flir.add_theta(global_PVs, params, theta)
+    flir.add_theta(global_PVs, params)
 
     # update config file
     config.update_config(params)
 
 
-def calc_blur_pixel(global_PVs, params):
-    """
-    Calculate the blur error (pixel units) due to a rotary stage fly scan motion durng the exposure.
-    
-    Parameters
-    ----------
-    params.exposure_time: float
-        Detector exposure time
-    params.ccd_readout : float
-        Detector read out time
-    variableDict[''roiSizeX''] : int
-        Detector X size
-    params.sample_rotation_end : float
-        Tomographic scan angle end
-    params.sample_rotation_start : float
-        Tomographic scan angle start
-    variableDict[''Projections'] : int
-        Numember of projections
+def set_slew_speed(global_PVs, params):
+    '''Determines the slew speed of the rotation stage.
+    Make sure that we aren't moving so fast that the camera can't keep up.
+    Based on user input, choices are:
+    * Use value from config file.  Show how much blur this is and if camera
+        can keep up.
+    * Base on acquisition parameters (data throughput and exposure).
+        Show how much blur this is.
+    * Base on both blur and data throughput.
+    '''
+    log.info('  *** Calculate slew speed and blur')
+    scan_range = abs(params.sample_rotation_start - params.sample_rotation_end)
+    images_per_proj = 1
+    if params.recursive_filter and int(params.recursive_filter_n_images) > 1:
+        images_per_proj = int(params.recursive_filter_n_images)
+    delta_angle = scan_range / params.num_projections / images_per_proj
+    data_max_framerate = flir.calc_max_framerate(global_PVs, params)
+    acq_max_framerate = 1.0 / (params.exposure_time + params.ccd_readout)
+    im_half_width = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
+    blur_max_framerate = 1e6
 
-    Returns
-    -------
-    float
-        Blur error in pixel. For good quality reconstruction this should be < 0.2 pixel.
-    """
-
-    angular_range =  params.sample_rotation_end -  params.sample_rotation_start
-    angular_step = angular_range/params.num_projections
-
-    min_scan_time = params.num_projections * (params.exposure_time + params.ccd_readout)
-    max_rot_speed = angular_range / min_scan_time
-
-    max_blur_delta = params.exposure_time * max_rot_speed
-    mid_detector = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
-    max_blur_pixel = mid_detector * np.sin(max_blur_delta * np.pi /180.)
-    max_frame_rate = params.num_projections / min_scan_time
-
-    rot_speed = max_rot_speed * params.rotation_slow_factor
-    scan_time = angular_range / rot_speed
-
-
-    blur_delta = params.exposure_time * rot_speed  
-    mid_detector = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
-    blur_pixel = mid_detector * np.sin(blur_delta * np.pi /180.)
-
-    frame_rate = params.num_projections / scan_time
-
-    log.info(' ')
-    log.info('  *** Calc blur pixel')
-    log.info("  *** *** Total # of proj: %s " % params.num_projections)
-    log.info("  *** *** Exposure Time: %s s" % params.exposure_time)
-    log.info("  *** *** Readout Time: %s s" % params.ccd_readout)
-    log.info("  *** *** Angular Range: %s degrees" % angular_range)
-    log.info("  *** *** Camera X size: %s " % global_PVs['Cam1_SizeX'].get())
-    log.info(' ')
-    log.info("  *** *** *** *** Angular Step: %4.2f degrees" % angular_step)   
-    log.info("  *** *** *** *** Scan Time: %4.2f (min %4.2f) s" % (scan_time, min_scan_time))
-    log.info("  *** *** *** *** Rot Speed: %4.2f (max %4.2f) degrees/s" % (rot_speed, max_rot_speed))
-    log.info("  *** *** *** *** Frame Rate: %4.2f (max %4.2f) fps" % (frame_rate, max_frame_rate))
-    if (blur_pixel > 1):
-        log.error("  *** *** *** *** Blur: %4.2f (max %4.2f) pixels" % (blur_pixel, max_blur_pixel))
+    if params.auto_slew_speed == 'manual':
+        log.info('  *** *** Using manual slew speed')
+        req_framerate = params.slew_speed / delta_angle
+        log.info('  *** *** Requested framerate is {:6.3} Hz'.format(req_framerate))
+        if acq_max_framerate < req_framerate:
+            log.warning('  *** *** Requested framerate too fast for exposure time given.')
+            log.warning('  *** *** You will miss frames!')
+        if data_max_framerate < req_framerate:
+            log.warning('  *** *** Requested framerate too fast for data transfer.')
+            log.warning('  *** *** You will miss frames!')
+        return finish_set_slew_speed(global_PVs, params)
+    elif params.auto_slew_speed == 'acqusition':
+        log.info('  *** *** Calc slew speed from data throughput and exposure limits.')
     else:
-        log.info("  *** *** *** *** Blur: %4.2f (max %4.2f) pixels" % (blur_pixel, max_blur_pixel))
-    log.info('  *** Calc blur pixel: Done!')
-    
-    return rot_speed
+        log.info('  *** *** Calc slew speed based on blur and acquisition parameters.')
+        max_blur_angle = np.degrees(np.arcsin(params.permitted_blur / im_half_width))
+        blur_max_framerate = max_blur_angle /  (params.exposure_time) / delta_angle
+    framerates = np.array([data_max_framerate, acq_max_framerate, blur_max_framerate])
+    params.slew_speed = np.min(framerates) * delta_angle
+    log.info('  *** *** Max framerate for data transfer is {:6.3f} Hz'.format(data_max_framerate))
+    log.info('  *** *** Max framerate for exposure time is {:6.3f} Hz'.format(acq_max_framerate))
+    if blur_max_framerate == np.min(framerates):
+        log.info('  *** *** Limited by blur to {:6.3f} Hz'.format(blur_max_framerate))
+    elif data_max_framerate == np.min(framerates):
+        log.info('  *** *** Limited by data throughput to {:6.3f} Hz'.format(data_max_framerate))
+    else:
+        log.info('  *** *** Limited by acquisition time to {:6.3f} Hz'.format(acq_max_framerate))
+    return finish_set_slew_speed(global_PVs, params)
+
+
+def finish_set_slew_speed(global_PVs,params):
+    im_half_width = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
+    blur = np.sin(np.radians(params.slew_speed * params.exposure_time)) * im_half_width 
+    if blur > params.permitted_blur:
+        log.warning('  *** *** Motion blur on image edge = {:6.2f} px'.format(blur))
+    else:
+        log.info('  *** *** Motion blur on image edge = {:6.2f} px'.format(blur))
+    log.info('  *** *** Slew speed set to {:6.3f} deg/s'.format(params.slew_speed))
+    global_PVs['Sample_Rotation_Speed'].put(params.slew_speed, wait=True)
+    return params.slew_speed
 
 
 def move_sample_out(global_PVs, params):
 
     log.info('      *** Sample out')
-    if not (params.sample_move_freeze):
-        if (params.sample_in_out=="vertical"):
-            log.info('      *** *** Move Sample Y out at: %f' % params.sample_out_position)
-            global_PVs['Motor_SampleY'].put(str(params.sample_out_position), wait=True, timeout=1000.0)                
-            if aps7bm.wait_pv(global_PVs['Motor_SampleY'], float(params.sample_out_position), 60) == False:
-                log.error('Motor_SampleY did not move in properly')
-                log.error(global_PVs['Motor_SampleY'].get())
-        else:
-            if (params.use_furnace):
-                log.info('      *** *** Move Furnace Y out at: %f' % params.furnace_out_position)
-                global_PVs['Motor_FurnaceY'].put(str(params.furnace_out_position), wait=True, timeout=1000.0)
-                if aps7bm.wait_pv(global_PVs['Motor_FurnaceY'], float(params.furnace_out_position), 60) == False:
-                    log.error('Motor_FurnaceY did not move in properly')
-                    log.error(global_PVs['Motor_FurnaceY'].get())
-            log.info('      *** *** Move Sample X out at: %f' % params.sample_out_position)
-            global_PVs['Motor_SampleX'].put(str(params.sample_out_position), wait=True, timeout=1000.0)
-            if aps7bm.wait_pv(global_PVs['Motor_SampleX'], float(params.sample_out_position), 60) == False:
-                log.error('Motor_SampleX did not move in properly')
-                log.error(global_PVs['Motor_SampleX'].get())
-    else:
-        log.info('      *** *** Sample Stack is Frozen')
+    if params.sample_move_freeze:
+        log.info('        *** *** Sample motion is frozen.')
+        return
+    params.original_x = global_PVs['Motor_SampleX'].drive
+    params.original_y = global_PVs['Motor_SampleY'].drive 
 
+    try:
+        #Check the limits
+        out_x = params.sample_out_x
+        out_y = params.sample_out_y
+        log.info('Moving to (x,y) = ({0:6.4f}, {1:6.4f})'.format(out_x, out_y))
+        if not (global_PVs['Motor_SampleX'].within_limits(out_x)
+               and global_PVs['Motor_SampleY'].within_limits(out_y)):
+            log.error('        *** *** Sample out position past motor limits.')
+            return
+        global_PVs['Motor_SampleX'].move(out_x, wait=True, timeout=10)
+        global_PVs['Motor_SampleY'].move(out_y, wait=True, timeout=10)
+        #Check if we ever got there
+        time.sleep(0.2)
+        if (abs(global_PVs['Motor_SampleX'].readback - out_x) > 1e-3 
+            or abs(global_PVs['Motor_SampleY'].readback - out_y) > 1e-3):
+            log.error('        *** *** Sample out motion failed!')
+    except Exception as ee:
+        log.error('EXCEPTION DURING SAMPLE OUT MOTION!')
+        global_PVs['Motor_SampleX'].move(params.original_x, wait=True, timeout=10)
+        global_PVs['Motor_SampleY'].move(params.original_y, wait=True, timeout=10)
+        raise ee
 
 def move_sample_in(global_PVs, params):
-
     log.info('      *** Sample in')
-    if not (params.sample_move_freeze):
-        if (params.sample_in_out=="vertical"):
-            log.info('      *** *** Move Sample Y in at: %f' % params.sample_in_position)
-            global_PVs['Motor_SampleY'].put(str(params.sample_in_position), wait=True, timeout=1000.0)                
-            if aps7bm.wait_pv(global_PVs['Motor_SampleY'], float(params.sample_in_position), 60) == False:
-                log.error('Motor_SampleY did not move in properly')
-                log.error(global_PVs['Motor_SampleY'].get())
-        else:
-            log.info('      *** *** Move Sample X in at: %f' % params.sample_in_position)
-            global_PVs['Motor_SampleX'].put(str(params.sample_in_position), wait=True, timeout=1000.0)
-            if aps7bm.wait_pv(global_PVs['Motor_SampleX'], float(params.sample_in_position), 60) == False:
-                log.error('Motor_SampleX did not move in properly')
-                log.error(global_PVs['Motor_SampleX'].get())
-            if (params.use_furnace):
-                log.info('      *** *** Move Furnace Y in at: %f' % params.furnace_in_position)
-                global_PVs['Motor_FurnaceY'].put(str(params.furnace_in_position), wait=True, timeout=1000.0)
-                if aps7bm.wait_pv(global_PVs['Motor_FurnaceY'], float(params.furnace_in_position), 60) == False:
-                    log.error('Motor_FurnaceY did not move in properly')
-                    log.error(global_PVs['Motor_FurnaceY'].get())
-    else:
-        log.info('      *** *** Sample Stack is Frozen')
+    if params.sample_move_freeze:
+        log.info('        *** *** Sample motion is frozen.')
+        return
+    try:
+        #If we haven't saved original positions yet, use the current ones.
+        try:
+            _ = params.original_x
+            _ = params.original_y
+        except AttributeError:
+            params.original_x = global_PVs['Motor_SampleX'].drive 
+            params.original_y = global_PVs['Motor_SampleY'].drive 
+        #Check the limits
+        if not (global_PVs['Motor_SampleX'].within_limits(params.original_x)
+               and global_PVs['Motor_SampleY'].within_limits(params.original_y)):
+            log.error('        *** *** Sample in position past motor limits.')
+            return
+        global_PVs['Motor_SampleX'].move(params.original_x, wait=True, timeout=10)
+        global_PVs['Motor_SampleY'].move(params.original_y, wait=True, timeout=10)
+        #Check if we ever got there
+        if (abs(global_PVs['Motor_SampleX'].readback - params.original_x) > 1e-3 
+            or abs(global_PVs['Motor_SampleY'].readback - params.original_y) > 1e-3):
+            log.error('        *** *** Sample in motion failed!')
+    except Exception as ee:
+        log.error('EXCEPTION DURING SAMPLE IN MOTION!')
+        raise ee
 
 
 def stop_scan(global_PVs, params):
-        log.info(' ')
-        log.error('  *** Stopping the scan: PLEASE WAIT')
-        global_PVs['Motor_SampleRot_Stop'].put(1)
-        global_PVs['HDF1_Capture'].put(0)
-        aps7bm.wait_pv(global_PVs['HDF1_Capture'], 0)
-        flir.init(global_PVs, params)
-        log.error('  *** Stopping scan: Done!')
-        ##init(global_PVs, params)
-
-
-def set_pso(global_PVs, params):
-
-    acclTime = 1.0 * params.slew_speed/params.accl_rot
-    scanDelta = abs(((float(params.sample_rotation_end) - float(params.sample_rotation_start))) / ((float(params.num_projections)) * float(params.recursive_filter_n_images)))
-
-    log.info('  *** *** start_pos %f' % float(params.sample_rotation_start))
-    log.info('  *** *** end pos %f' % float(params.sample_rotation_end))
-
-    global_PVs['Fly_StartPos'].put(float(params.sample_rotation_start), wait=True)
-    global_PVs['Fly_EndPos'].put(float(params.sample_rotation_end), wait=True)
-    global_PVs['Fly_SlewSpeed'].put(params.slew_speed, wait=True)
-    global_PVs['Fly_ScanDelta'].put(scanDelta, wait=True)
-    time.sleep(3.0)
-
-    calc_num_proj = global_PVs['Fly_Calc_Projections'].get()
-    
-    if calc_num_proj == None:
-        log.error('  *** *** Error getting fly calculated number of projections!')
-        calc_num_proj = global_PVs['Fly_Calc_Projections'].get()
-        log.error('  *** *** Using %s instead of %s' % (calc_num_proj, params.num_projections))
-    if calc_num_proj != int(params.num_projections):
-        log.warning('  *** *** Changing number of projections from: %s to: %s' % (params.num_projections, int(calc_num_proj)))
-        params.num_projections = int(calc_num_proj)
-    log.info('  *** *** Number of projections: %d' % int(params.num_projections))
-    log.info('  *** *** Fly calc triggers: %d' % int(calc_num_proj))
-    global_PVs['Fly_ScanControl'].put('Standard')
-
     log.info(' ')
-    log.info('  *** Taxi before starting capture')
-    global_PVs['Fly_Taxi'].put(1, wait=True)
-    aps7bm.wait_pv(global_PVs['Fly_Taxi'], 0)
-    log.info('  *** Taxi before starting capture: Done!')
-
-
+    log.error('  *** Stopping the scan: PLEASE WAIT')
+    aps7bm.close_shutters(global_PVs, params)
+    global_PVs['Motor_SampleRot'].stop()
+    global_PVs['HDF1_Capture'].put(0)
+    aps7bm.wait_pv(global_PVs['HDF1_Capture'], 0)
+    pso.cleanup_PSO()
+    flir.init(global_PVs, params)
+    log.error('  *** Stopping scan: Done!')
