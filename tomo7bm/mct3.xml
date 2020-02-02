@@ -154,7 +154,7 @@
         </group><!-- /detector -->
         <group name="detection_system">
           <group name="objective">
-            <dataset name="magnification" source="ndattribute" ndattribute="LensMagnification" when="OnFileClose">
+            <dataset name="magnification" source="ndattribute" ndattribute="Magnification" when="OnFileClose">
             </dataset> 
           </group><!-- /objective -->
           <group name="scintillator">
@@ -165,6 +165,10 @@
             </dataset>
           </group><!-- /scintillator -->
         </group><!-- /detection_system -->
+        <group name="attenuator_1">
+            <dataset name="description" source="constant" value="Be" type="string" when="OnFileClose"></dataset>
+            <dataset name="thickness" source="constant" value="750" type="string" when="OnFileClose"></dataset>
+        </group><!-- /attenuator_1 -->
       </group><!-- /instrument -->
       
       <group name="ancillary">

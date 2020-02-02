@@ -9,9 +9,9 @@ from tomo7bm import log
 
 TESTING = True
 
-ShutterA_Open_Value = 1
-ShutterA_Close_Value = 0
-Recursive_Filter_Type = 'RecursiveAve'
+ShutterA_Open_Value = 0
+ShutterA_Close_Value = 1
+Recursive_Filter_Type = 'Average'
 EPSILON = 0.1
 
 
@@ -195,7 +195,8 @@ def init_general_PVs(params):
     else:
         log.error('Detector %s is not defined' % params.camera_ioc_prefix)
         return            
-
+    global TESTING
+    TESTING = params.testing
     user_info_update(global_PVs, params)
     if params.update_from_PVs:
         update_params_from_PVs(global_PVs, params)      
@@ -249,6 +250,7 @@ def update_pixel_size(global_PVs, params):
 def update_params_from_PVs(global_PVs, params):
     '''Update values of params to values from global_PVs.
     '''
+    log.info('  *** Updating parameters from PVs')
     params.num_white_images = global_PVs['Num_White_Images'].get()
     params.num_dark_images = global_PVs['Num_White_Images'].get()
     params.sleep_steps = global_PVs['Scan_Replicates'].get()
@@ -269,26 +271,3 @@ def update_params_from_PVs(global_PVs, params):
     params.horizontal_scan_step_size = global_PVs['Horizontal_Scan_Step_Size'].get()
     params.sample_out_x = global_PVs['Sample_Out_Position_X'].get()
     params.sample_out_y = global_PVs['Sample_Out_Position_Y'].get()
-    
-'''
-    global_PVs['Camera_IOC_Prefix'] = PV('7bmb1:ExpInfo:CameraIOCPrefix.VAL')
-    global_PVs['Filters'] = PV('7bmb1:ExpInfo:Filters.VAL')
-    global_PVs['File_Name'] = PV('7bmb1:ExpInfo:FileName.VAL')
-    global_PVs['Station'] = PV('7bmb1:ExpInfo:Station.VAL')
-    global_PVs['Remote_Data_Trasfer'] = PV('7bmb1:ExpInfo:RemoteDataTrasfer.VAL')
-    global_PVs['Remote_Analysis_Dir'] = PV('7bmb1:ExpInfo:RemoteAnalysisDir.VAL')
-    global_PVs['User_Last_Name'] = PV('7bmb1:ExpInfo:UserLastName.VAL')
-    global_PVs['Experiment_Year_Month'] = PV('7bmb1:ExpInfo:ExperimentYearMonth.VAL')
-    global_PVs['Use_Furnace'] = PV('7bmb1:ExpInfo:UseFurnace.VAL')
-    global_PVs['White_Field_Motion'] = PV('7bmb1:ExpInfo:WhiteFieldMotion.VAL')
-    global_PVs['Num_White_Images'] = PV('7bmb1:ExpInfo:NumWhiteImages.VAL')
-    global_PVs['Sample_Detector_Distance'] = PV('7bmb1:ExpInfo:SampleDetectorDistance.VAL')
-    global_PVs['Sample_Out_Position_Y'] = PV('7bmb1:ExpInfo:SampleOutPositionY.VAL')
-    global_PVs['Sample_Out_Position_X'] = PV('7bmb1:ExpInfo:SampleOutPositionX.VAL')
-    global_PVs['Sample_Rotation_Speed'] = PV('7bmb1:ExpInfo:SampleRotationSpeed.VAL')
-    global_PVs['Sample_Retrace_Speed'] = PV('7bmb1:ExpInfo:RetraceSpeed.VAL')
-    global_PVs['Furnace_In_Position'] = PV('7bmb1:ExpInfo:FurnaceInPosition.VAL')
-    global_PVs['Furnace_Out_Position'] = PV('7bmb1:ExpInfo:FurnaceOutPosition.VAL')
-    global_PVs['Scan_Type'] = PV('7bmb1:ExpInfo:ScanType.VAL')
-    global_PVs['Sleep_Time'] = PV('7bmb1:ExpInfo:SleepTime.VAL')
-'''

@@ -17,8 +17,10 @@ req_end = None
 actual_end = None
 delta_encoder_counts = None
 delta_egu = None
-num_points = None 
+num_proj = None 
+num_images_per_proj = None
 PSO_positions = None
+proj_positions = None
 overall_sense = None
 motor_start = None
 speed = None
@@ -121,6 +123,7 @@ def compute_positions():
     Moreover, we base these on the number of images, not the delta between.
     '''
     global actual_end, delta_egu, delta_encoder_counts, motor_start, motor_end, PSO_positions
+    global proj_positions
     _compute_senses()
     #Get the distance needed for acceleration = 1/2 a t^2 = 1/2 * v * t
     motor_accl_time = driver.motor.acceleration    #Acceleration time in s
@@ -128,7 +131,7 @@ def compute_positions():
 
     #Compute the actual delta to keep things at an integral number of encoder counts
     raw_delta_encoder_counts = (abs(req_end - req_start) 
-                                    / (num_points - 1) * driver.encoder_multiply)
+                                    / ((num_proj - 1) * num_images_per_proj) * driver.encoder_multiply)
     delta_encoder_counts = round(raw_delta_encoder_counts)
     if abs(raw_delta_encoder_counts - delta_encoder_counts) > 1e-4:
         log.warning('  *** *** *** Requested scan would have used a non-integer number of encoder pulses.')
@@ -143,8 +146,10 @@ def compute_positions():
     motor_end = req_end + taxi_dist * user_direction
     
     #Where will the last point actually be?
-    actual_end = req_start + (num_points - 1) * delta_egu * user_direction
-    PSO_positions = np.linspace(req_start, actual_end, num_points)
+    actual_end = req_start + (num_proj * num_images_per_proj- 1) * delta_egu * user_direction
+    end_proj = req_start + (num_proj - 1) * delta_egu * user_direction * num_images_per_proj
+    PSO_positions = np.linspace(req_start, actual_end, num_proj * num_images_per_proj)
+    proj_positions = np.linspace(req_start, end_proj, num_proj) 
     log_info()
 
     
@@ -167,18 +172,23 @@ def log_info():
     log.warning('  *** *** Positions for fly scan.')
     log.info('  *** *** *** Motor start = {0:f}'.format(req_start))
     log.info('  *** *** *** Motor end = {0:f}'.format(actual_end))
-    log.info('  *** *** *** # Points = {0:4d}'.format(num_points))
+    log.info('  *** *** *** # Points = {0:4d}'.format(num_proj))
     log.info('  *** *** *** Degrees per image = {0:f}'.format(delta_egu))
+    log.info('  *** *** *** Degrees per projection = {0:f}'.format(delta_egu / num_images_per_proj))
     log.info('  *** *** *** Encoder counts per image = {0:d}'.format(delta_encoder_counts))
 
 
 def pso_init(params):
     '''Initialize calculations.
     '''
-    global req_start, req_end, num_points, speed
+    global req_start, req_end, num_proj, num_images_per_proj, speed
     req_start = params.sample_rotation_start
     req_end = params.sample_rotation_end
-    num_points = params.num_projections
+    num_proj = params.num_projections
+    if params.recursive_filter:
+        num_images_per_proj = params.recursive_filter_n_images
+    else:
+        num_images_per_proj = 1
     speed = params.slew_speed
     driver.default_speed = params.retrace_speed
     compute_positions()
@@ -190,7 +200,7 @@ def fly(global_PVs, params):
     log.warning('  *** Fly Scan Time Estimate: %4.2f minutes' % (flyscan_time_estimate/60.))
     #Trigger fly motion to start.  Don't wait for it, since it takes time.
     start_time = time.time()
-    driver.motor.move(actual_end, wait=False)
+    driver.motor.move(motor_end, wait=False)
     time.sleep(1)
     old_image_counter = 0
     expected_framerate = driver.motor.slew_speed / delta_egu
@@ -199,7 +209,7 @@ def fly(global_PVs, params):
         time.sleep(1)
         if not driver.motor.moving:
             log.info('  *** *** Sample rotation stopped moving.')
-            if abs(driver.motor.drive - actual_end) > 1e-2:
+            if abs(driver.motor.drive - motor_end) > 1e-2:
                 log.error('  *** *** Sample rotation ended but not at right position!')
                 raise ValueError
             else:

@@ -109,10 +109,9 @@ def _setup_hdf_writer(global_PVs, params, fname=None):
         global_PVs['HDF1_EnableCallbacks'].put('Enable', wait=True)
         global_PVs['HDF1_BlockingCallbacks'].put('No')
 
-        totalProj = (int(params.num_projections / params.recursive_filter_n_images) 
+        totalProj = (int(params.num_projections) 
                         + int(params.num_dark_images) + int(params.num_white_images))
 
-        log.info(str(totalProj))
         global_PVs['HDF1_NumCapture'].put(totalProj, wait=True)
         global_PVs['HDF1_ExtraDimSizeN'].put(totalProj, wait=True)
         global_PVs['HDF1_FileWriteMode'].put(str(params.file_write_mode), wait=True)
@@ -161,7 +160,7 @@ def acquire(global_PVs, params):
     log.info('  *** Fly Scan: Done!')
     # Set trigger mode to internal for post dark and white
     global_PVs['Cam1_TriggerMode'].put('Internal')
-    return pso.PSO_positions
+    return pso.proj_positions
             
 
 def acquire_flat(global_PVs, params):
@@ -172,7 +171,8 @@ def acquire_flat(global_PVs, params):
     global_PVs['Cam1_ImageMode'].put('Multiple', wait=True)
     global_PVs['Cam1_FrameType'].put(FrameTypeWhite, wait=True)             
     global_PVs['Cam1_TriggerMode'].put('Internal', wait=True)
-    global_PVs['Cam1_NumImages'].put(int(params.num_white_images), wait=True)
+    num_images = int(params.num_white_images)  * params.recursive_filter_n_images
+    global_PVs['Cam1_NumImages'].put(num_images, wait=True)
     wait_time = int(params.num_white_images) * params.exposure_time + 5
     global_PVs['Cam1_Acquire'].put(DetectorAcquire)
     time.sleep(1)
@@ -191,7 +191,8 @@ def acquire_dark(global_PVs, params):
     global_PVs['Cam1_ImageMode'].put('Multiple', wait=True)
     global_PVs['Cam1_FrameType'].put(FrameTypeDark, wait=True)             
     global_PVs['Cam1_TriggerMode'].put('Internal', wait=True)
-    global_PVs['Cam1_NumImages'].put(int(params.num_dark_images), wait=True)
+    num_images = int(params.num_white_images)  * params.recursive_filter_n_images
+    global_PVs['Cam1_NumImages'].put(num_images, wait=True)
     wait_time = int(params.num_dark_images) * params.exposure_time + 5
     global_PVs['Cam1_Acquire'].put(DetectorAcquire)
     time.sleep(1.0)
@@ -225,7 +226,7 @@ def add_theta(global_PVs, params):
     log.info('  *** add_theta')
     
     fullname = global_PVs['HDF1_FullFileName_RBV'].get(as_string=True)
-    theta_arr = pso.PSO_positions
+    theta_arr = pso.proj_positions
     if theta_arr is None:
         return
     try:

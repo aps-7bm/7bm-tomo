@@ -63,10 +63,6 @@ def fly_scan(params):
             #dm.scp(global_PVs, params)
 
         log.info('  *** Total loop scan time: %s minutes' % str((time.time() - tic)/60.))
-
-        log.info('  *** Moving rotary stage to start position')
-        global_PVs["Motor_SampleRot"].put(0, wait=True, timeout=600.0)
-        log.info('  *** Moving rotary stage to start position: Done!')
         global_PVs['Cam1_ImageMode'].put('Continuous')
         log.info('  *** Done!')
     except  KeyError:
@@ -294,6 +290,9 @@ def tomo_fly_scan(global_PVs, params):
     flir.checkclose_hdf(global_PVs, params)
     flir.add_theta(global_PVs, params)
 
+    # If requested, move rotation stage back to zero
+    pso.cleanup_PSO()
+    pso.driver.motor.move(pso.req_start, wait=False)
     # update config file
     config.update_config(params)
 
@@ -310,10 +309,8 @@ def set_slew_speed(global_PVs, params):
     '''
     log.info('  *** Calculate slew speed and blur')
     scan_range = abs(params.sample_rotation_start - params.sample_rotation_end)
-    images_per_proj = 1
-    if params.recursive_filter and int(params.recursive_filter_n_images) > 1:
-        images_per_proj = int(params.recursive_filter_n_images)
-    delta_angle = scan_range / params.num_projections / images_per_proj
+    set_image_factor(global_PVs, params)
+    delta_angle = scan_range / (params.num_projections - 1) / params.recursive_filter_n_images 
     data_max_framerate = flir.calc_max_framerate(global_PVs, params)
     acq_max_framerate = 1.0 / (params.exposure_time + params.ccd_readout)
     im_half_width = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
@@ -332,6 +329,8 @@ def set_slew_speed(global_PVs, params):
         return finish_set_slew_speed(global_PVs, params)
     elif params.auto_slew_speed == 'acqusition':
         log.info('  *** *** Calc slew speed from data throughput and exposure limits.')
+    elif params.recursive_filter_n_images > 1:
+        log.warning('  *** *** Blur calculation makes less sense with averaging in each projection.')
     else:
         log.info('  *** *** Calc slew speed based on blur and acquisition parameters.')
         max_blur_angle = np.degrees(np.arcsin(params.permitted_blur / im_half_width))
@@ -346,12 +345,9 @@ def set_slew_speed(global_PVs, params):
         log.info('  *** *** Limited by data throughput to {:6.3f} Hz'.format(data_max_framerate))
     else:
         log.info('  *** *** Limited by acquisition time to {:6.3f} Hz'.format(acq_max_framerate))
-    return finish_set_slew_speed(global_PVs, params)
-
-
-def finish_set_slew_speed(global_PVs,params):
-    im_half_width = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
     blur = np.sin(np.radians(params.slew_speed * params.exposure_time)) * im_half_width 
+    if params.recursive_filter_n_images > 1:
+        blur = np.sin(np.radians(delta_angle)) * im_half_width    
     if blur > params.permitted_blur:
         log.warning('  *** *** Motion blur on image edge = {:6.2f} px'.format(blur))
     else:
@@ -374,7 +370,7 @@ def move_sample_out(global_PVs, params):
         #Check the limits
         out_x = params.sample_out_x
         out_y = params.sample_out_y
-        log.info('Moving to (x,y) = ({0:6.4f}, {1:6.4f})'.format(out_x, out_y))
+        log.info('      *** Moving to (x,y) = ({0:6.4f}, {1:6.4f})'.format(out_x, out_y))
         if not (global_PVs['Motor_SampleX'].within_limits(out_x)
                and global_PVs['Motor_SampleY'].within_limits(out_y)):
             log.error('        *** *** Sample out position past motor limits.')
@@ -405,6 +401,8 @@ def move_sample_in(global_PVs, params):
         except AttributeError:
             params.original_x = global_PVs['Motor_SampleX'].drive 
             params.original_y = global_PVs['Motor_SampleY'].drive 
+        log.info('      *** Moving to (x,y) = ({0:6.4f}, {1:6.4f})'.format(
+                    params.original_x, params.original_y))
         #Check the limits
         if not (global_PVs['Motor_SampleX'].within_limits(params.original_x)
                and global_PVs['Motor_SampleY'].within_limits(params.original_y)):

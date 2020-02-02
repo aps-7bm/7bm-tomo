@@ -35,6 +35,10 @@ SECTIONS['general'] = {
     'update-from-PVs': {
         'default': False,
         'help': 'If True, use PV values to update pertinent parameters.',
+        'action': 'store_true'},
+    'testing': {
+        'default': False,
+        'help': 'If True, do not acutally open the shutters.',
         'action': 'store_true'}
         }
 
