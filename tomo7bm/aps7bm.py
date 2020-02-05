@@ -141,7 +141,7 @@ def init_general_PVs(params):
         global_PVs['Cam1_MaxSizeX_RBV'] = PV(params.camera_ioc_prefix + 'cam1:MaxSizeX_RBV')
         global_PVs['Cam1_MaxSizeY_RBV'] = PV(params.camera_ioc_prefix + 'cam1:MaxSizeY_RBV')
         global_PVs['Cam1PixelFormat_RBV'] = PV(params.camera_ioc_prefix + 'cam1:PixelFormat_RBV')
-
+        global_PVs['Cam1_Image_Dtype'] = PV(params.camera_ioc_prefix + 'image1:DataType_RBV')
         global_PVs['Cam1_Image'] = PV(params.camera_ioc_prefix + 'image1:ArrayData')
 
         # hdf5 writer PV's

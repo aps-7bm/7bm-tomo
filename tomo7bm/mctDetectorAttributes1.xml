@@ -48,9 +48,9 @@
     <Attribute name="Sample_X_Position"               type="EPICS_PV" source="7bmb1:aero:m2.RBV"            dbrtype="DBR_DOUBLE"/>
     <Attribute name="Sample_Y_Position"               type="EPICS_PV" source="7bmb1:aero:m1.RBV"            dbrtype="DBR_DOUBLE"/>
     <Attribute name="Sample_Theta_Position"           type="EPICS_PV" source="7bmb1:aero:m3.RBV"            dbrtype="DBR_DOUBLE"/>
-    <Attribute name="Detector_X_Position"             type="EPICS_PV" source="7bmb1:m5.RBV"                 dbrtype="DBR_DOUBLE"/>
-    <Attribute name="Detector_Y_Position"             type="EPICS_PV" source="7bmb1:m6.RBV"                 dbrtype="DBR_DOUBLE"/>
-    <Attribute name="Detector_Tilt"                   type="EPICS_PV" source="7bmb1:m3.RBV"                 dbrtype="DBR_DOUBLE"/>
+    <Attribute name="Detector_X_Position"             type="EPICS_PV" source="7bmb1:m1.RBV"                 dbrtype="DBR_DOUBLE"/>
+    <Attribute name="Detector_Y_Position"             type="EPICS_PV" source="7bmb1:m7.RBV"                 dbrtype="DBR_DOUBLE"/>
+    <Attribute name="Detector_Tilt"                   type="EPICS_PV" source="7bmb1:m34.RBV"                 dbrtype="DBR_DOUBLE"/>
     <Attribute name="Focus_Motor_Position"            type="EPICS_PV" source="7bmb1:m38.RBV"                dbrtype="DBR_DOUBLE"/>
     <Attribute name="DS_Table_X0_Motor_Position"      type="EPICS_PV" source="7bmb1:m13.RBV"                dbrtype="DBR_DOUBLE"/>
     <Attribute name="DS_Table_X2_Motor_Position"      type="EPICS_PV" source="7bmb1:m14.RBV"                dbrtype="DBR_DOUBLE"/>

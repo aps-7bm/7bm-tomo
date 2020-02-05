@@ -13,6 +13,7 @@ import numpy as np
 from tomo7bm import aps7bm
 from tomo7bm import log
 from tomo7bm import pso
+from tomo7bm import scan
 
 FrameTypeData = 0
 FrameTypeDark = 1
@@ -248,18 +249,22 @@ def take_image(global_PVs, params):
 
     image_size = nRow * nCol
 
+    global_PVs['Cam1_ImageMode'].put('Single', wait=True)
     global_PVs['Cam1_NumImages'].put(1, wait=True)
 
-    global_PVs['Cam1_TriggerMode'].put('Off', wait=True)
+    global_PVs['Cam1_TriggerMode'].put('Internal', wait=True)
     wait_time_sec = int(params.exposure_time) + 5
 
     global_PVs['Cam1_Acquire'].put(DetectorAcquire, wait=True, timeout=1000.0)
     time.sleep(0.1)
     if aps7bm.wait_pv(global_PVs['Cam1_Acquire'], DetectorIdle, wait_time_sec) == False: # adjust wait time
         global_PVs['Cam1_Acquire'].put(DetectorIdle)
+        log.warning('The camera failed to finish acquisition.  Set to done manually.')
     
     # Get the image loaded in memory
     img_vect = global_PVs['Cam1_Image'].get(count=image_size)
+    if global_PVs['Cam1_Image_Dtype'].get(as_string=True) == 'UInt16':
+        img_vect = img_vect.astype(np.uint16)
     img = np.reshape(img_vect,[nRow, nCol])
 
     return img
@@ -277,18 +282,15 @@ def take_dark(global_PVs, params):
     return take_image(global_PVs, params)
 
 
-def take_dark_and_white(global_PVs, params):
+def take_dark_and_white(global_PVs, params, leave_shutter_open=False):
     aps7bm.close_shutters(global_PVs, params)
     dark_field = take_dark(global_PVs, params)
-    # plot(dark_field)
-
     aps7bm.open_shutters(global_PVs, params)
-    aps7bm.move_sample_out(global_PVs, params)
+    scan.move_sample_out(global_PVs, params)
     white_field = take_flat(global_PVs, params)
-    # plot(white_field)
-
-    aps7bm.move_sample_in(global_PVs, params)
-
+    scan.move_sample_in(global_PVs, params)
+    if not leave_shutter_open:
+        aps7bm.close_shutters(global_PVs, params)
     return dark_field, white_field
 
 

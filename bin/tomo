@@ -50,18 +50,20 @@ def run_scan(args):
 
 def run_axis(args):
     log.warning('finding roll and rotation axis location')
-    rotation_axis_location, roll = align.find_roll_and_rotation_axis_location(args)
+    rotation_axis_location, roll = align.find_tilt_rotation_axis(args)
     if (rotation_axis_location or roll) is None:
         log.error('find returned None')
     else:
-        log.warning('roll: %f' % roll) 
+        log.warning('vertical shift: %f' % roll) 
         log.warning('rotation axis location %f pixel' % rotation_axis_location)
 
 
 def run_res(args):
     log.warning('finding detector resolution')
-    args.resolution = align.find_resolution(args)
-    log.warning('detector resolution: %f μm/pixel' % args.resolution)
+    align.find_resolution(args)
+    log.warning('lens magnification = {:6.4f}'.format(args.lens_magnification))
+    log.warning('detection resolution: {:6.4f} μm/pixel'.format(
+                    float(args.resolution) / float(args.lens_magnification)))
 
 
 def main():

@@ -1,7 +1,7 @@
 import os
 import sys
 import shutil
-import pathlib
+from pathlib import Path
 import argparse
 import configparser
 
@@ -455,7 +455,6 @@ def write(config_file, args=None, sections=None):
             if name != 'config':
                 config.set(section, prefix + name, str(value))
 
-
     with open(config_file, 'w') as f:
         config.write(f)
 
@@ -489,7 +488,9 @@ def update_config(args):
         write(args.config, args=args, sections=sections)
 
         # copy tomo2bm.conf to the raw data directory with a unique name (sample_name.conf)
-        log_fname = args.file_path + os.sep + args.file_name + '.conf'
+        log.info(args.file_path)
+        log.info(args.file_name)
+        log_fname = str(Path.joinpath(Path(args.file_path), args.file_name + '.conf'))
         try:
             shutil.copyfile(args.config, log_fname)
             log.info('  *** copied %s to %s ' % (args.config, log_fname))
