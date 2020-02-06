@@ -87,6 +87,10 @@ SECTIONS['detector'] = {
         'default': 0.1,
         'type': float,
         'help': " "},
+    'bright-exposure-time': {
+        'default': 0.1,
+        'type': float,
+        'help': "Exposure time for the bright field "},
     'ccd-readout': {
         'choices': [0.,0.006, 0.01],
         'default': 0.0,

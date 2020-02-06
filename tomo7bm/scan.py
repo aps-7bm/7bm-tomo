@@ -313,7 +313,7 @@ def set_slew_speed(global_PVs, params):
     delta_angle = scan_range / (params.num_projections - 1) / params.recursive_filter_n_images 
     data_max_framerate = flir.calc_max_framerate(global_PVs, params)
     acq_max_framerate = 1.0 / (params.exposure_time + params.ccd_readout)
-    im_half_width = global_PVs['Cam1_MaxSizeX_RBV'].get() / 2.0
+    im_half_width = global_PVs['Cam1_SizeX'].get() / 2.0
     blur_max_framerate = 1e6
 
     if params.auto_slew_speed == 'manual':

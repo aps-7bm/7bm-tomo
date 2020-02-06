@@ -173,8 +173,10 @@ def acquire_flat(global_PVs, params):
     global_PVs['Cam1_FrameType'].put(FrameTypeWhite, wait=True)             
     global_PVs['Cam1_TriggerMode'].put('Internal', wait=True)
     num_images = int(params.num_white_images)  * params.recursive_filter_n_images
+    log.info('  *** *** set exp time')
+    global_PVs['Cam1_AcquireTime'].put(params.bright_exposure_time, wait=True)
     global_PVs['Cam1_NumImages'].put(num_images, wait=True)
-    wait_time = int(params.num_white_images) * params.exposure_time + 5
+    wait_time = int(num_images) * params.exposure_time + 5
     global_PVs['Cam1_Acquire'].put(DetectorAcquire)
     time.sleep(1)
     if aps7bm.wait_pv(global_PVs['Cam1_Acquire'], DetectorIdle, wait_time):
@@ -182,6 +184,8 @@ def acquire_flat(global_PVs, params):
     else:
         log.error('     *** *** Timeout.')
         raise Exception    
+    log.info('  *** *** set exp time back')
+    global_PVs['Cam1_AcquireTime'].put(params.exposure_time, wait=True)
 
 
 def acquire_dark(global_PVs, params):
@@ -194,7 +198,7 @@ def acquire_dark(global_PVs, params):
     global_PVs['Cam1_TriggerMode'].put('Internal', wait=True)
     num_images = int(params.num_white_images)  * params.recursive_filter_n_images
     global_PVs['Cam1_NumImages'].put(num_images, wait=True)
-    wait_time = int(params.num_dark_images) * params.exposure_time + 5
+    wait_time = int(num_images) * params.exposure_time + 5
     global_PVs['Cam1_Acquire'].put(DetectorAcquire)
     time.sleep(1.0)
     if aps7bm.wait_pv(global_PVs['Cam1_Acquire'], DetectorIdle, wait_time):
@@ -273,7 +277,11 @@ def take_image(global_PVs, params):
 def take_flat(global_PVs, params):
 
     log.info('  *** acquire white')
-    return take_image(global_PVs, params)
+    log.info('  *** *** set exp time')
+    global_PVs['Cam1_AcquireTime'].put(params.bright_exposure_time, wait=True)
+    output = take_image(global_PVs, params)
+    global_PVs['Cam1_AcquireTime'].put(params.exposure_time, wait=True)
+    return output
 
 
 def take_dark(global_PVs, params):
