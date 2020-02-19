@@ -92,7 +92,7 @@ SECTIONS['detector'] = {
         'type': float,
         'help': "Exposure time for the bright field "},
     'ccd-readout': {
-        'choices': [0.,0.006, 0.01],
+        'choices': [0., 1e-3,0.006, 0.01],
         'default': 0.0,
         'type': float,
         # 'help': "8bit: 0.006; 16-bit: 0.01"},
@@ -271,11 +271,11 @@ SECTIONS['furnace'] = {                 # True: moves the furnace  to FurnaceYOu
 
 SECTIONS['file-transfer'] = {
     'remote-analysis-dir': {
-        'default':  'tomo@mona3:/local/data/',
+        'default':  '7bmb@mach:/net/s7data/export/SprayData/Cycle_2020_1/Tomography/',
         'type': str,
         'help': " "},
     'remote-data-transfer ': {
-        'default': False,
+        'default': True,
         'action': 'store_true',
         'help': " "},
     }

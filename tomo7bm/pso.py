@@ -205,7 +205,11 @@ def fly(global_PVs, params):
     old_image_counter = 0
     expected_framerate = driver.motor.slew_speed / delta_egu
     #Monitor the motion to make sure we aren't stuck.
+    i = 0
     while time.time() - start_time < 1.5 * flyscan_time_estimate:
+        i += 1
+        if i % 10 == 0:
+            log.info('  *** *** Sample rotation at angle {:f}'.format(driver.motor.readback))
         time.sleep(1)
         if not driver.motor.moving:
             log.info('  *** *** Sample rotation stopped moving.')

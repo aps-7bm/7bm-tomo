@@ -36,7 +36,7 @@
     <Attribute name="WB_Slit_H_Center"                type="EPICS_PV" source="7bma1:Slit1Ht2.D"             dbrtype="DBR_DOUBLE"/>
     <Attribute name="Filter_1_Material"               type="EPICS_PV" source="7bma1:filter1:Position"       dbrtype="DBR_STRING"/>
     <Attribute name="Filter_2_Material"               type="EPICS_PV" source="7bma1:filter2:Position"       dbrtype="DBR_STRING"/>
-    <Attribute name="SaveDest" 			              type="EPICS_PV" source="7bm_pg4:cam1:FrameType" 	    dbrtype="DBR_STRING" description="Data save destination"/>
+    <Attribute name="SaveDest" 			              type="EPICS_PV" source="7bm_pg1:cam1:FrameType" 	    dbrtype="DBR_STRING" description="Data save destination"/>
 
     <Attribute name="Bright_Field_Exposure_Time"      type="EPICS_PV" source="7bmb1:ExpInfo:BrightExposureTime"            dbrtype="DBR_DOUBLE"/>
     <Attribute name="Start_Theta"                     type="EPICS_PV" source="7bmb1:ExpInfo:SampleRotationStart"             dbrtype="DBR_DOUBLE"/>
