@@ -6,7 +6,7 @@ from __future__ import print_function
 
 import os
 import subprocess
-import pathlib
+from pathlib import Path
 from paramiko import SSHClient
 
 from tomo7bm import log
@@ -50,29 +50,25 @@ def scp(global_PVs, params):
     log.info('  *** Data transfer')
 
     remote_server = params.remote_analysis_dir.split(':')[0]
-    remote_top_dir = params.remote_analysis_dir.split(':')[1]
+    remote_top_dir = str(Path(params.remote_analysis_dir.split(':')[1]))
     log.info('      *** remote server: %s' % remote_server)
-    log.info('      *** remote top directory: %s' % remote_top_dir)
+    log.info('      *** remote top directory: %s' % (remote_top_dir))
 
-    fname_origin = global_PVs['HDF1_FullFileName_RBV'].get(as_string=True)
-    p = pathlib.Path(fname_origin)
-    fname_destination = params.remote_analysis_dir + p.parts[-3] + '/' + p.parts[-2] + '/'
-    remote_dir = remote_top_dir + p.parts[-3] + '/' + p.parts[-2] + '/'
+    fname_origin = Path(global_PVs['HDF1_FullFileName_RBV'].get(as_string=True))
 
-    log.info('      *** origin: %s' % fname_origin)
-    log.info('      *** destination: %s' % fname_destination)
-    # log.info('      *** remote directory: %s' % remote_dir)
+    log.info('      *** origin: %s' % str(fname_origin))
+    log.info('      *** destination: %s' % params.remote_analysis_dir)
 
-    ret = check_remote_directory(remote_server, remote_dir)
+    ret = check_remote_directory(remote_server, (remote_top_dir))
 
     if ret == 0:
-        os.system('scp -q ' + fname_origin + ' ' + fname_destination + '&')
-        log.info('  *** Data transfer: Done!')
+        os.system('scp -q ' + str(fname_origin) + ' ' + params.remote_analysis_dir + '&')
+        log.info('  *** Data transfer: in process!')
         return 0
     elif ret == 2:
-        iret = create_remote_directory(remote_server, remote_dir)
+        iret = create_remote_directory(remote_server, remote_top_dir)
         if iret == 0: 
-            os.system('scp -q ' + fname_origin + ' ' + fname_destination + '&')
+            os.system('scp -q ' + fname_origin + ' ' + params.remote_analysis_dir + '&')
         log.info('  *** Data transfer: Done!')
         return 0
     else:
