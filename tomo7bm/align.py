@@ -1,40 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
-import json
 import time
-from epics import PV
-import h5py
-import shutil
-import os
-import argparse
 
-import traceback
 import numpy as np
-from datetime import datetime
-import pathlib
-import signal
 from skimage.feature import match_template, register_translation
-from scipy.signal.windows import get_window
 import matplotlib.pyplot as plt
-import scipy.signal
 import skimage.filters
 
 from tomo7bm import log
 from tomo7bm import flir
 from tomo7bm import aps7bm
-from tomo7bm import config
-from tomo7bm import util
-from tomo7bm import scan
-
-#import matplotlib.pylab as pl
-import matplotlib.widgets as wdg
-
-
-from skimage import filters
-from skimage.measure import regionprops
-from skimage.feature import register_translation
 
 
 def find_resolution(params):
@@ -97,7 +73,7 @@ def find_tilt_rotation_axis(params):
     params.file_name = None # so we don't run the flir._setup_hdf_writer 
 
     try: 
-        if not scan.check_camera_IOC(global_PVs, params):
+        if not flir.check_camera_IOC(global_PVs, params):
             return False
 
         flir.init(global_PVs, params)

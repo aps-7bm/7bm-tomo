@@ -97,17 +97,6 @@ def init_general_PVs(params):
     return global_PVs
 
 
-def user_info_update(global_PVs, params):
-    params.proposal_title = global_PVs['Proposal_Title'].get(as_string=True)
-    params.user_email = global_PVs['User_Email'].get(as_string=True)
-    params.user_badge = global_PVs['User_Badge'].get(as_string=True)
-    params.user_last_name = global_PVs['User_Last_Name'].get(as_string=True)
-    params.proposal_number = global_PVs['Proposal_Number'].get(as_string=True)
-    params.user_institution = global_PVs['User_Institution'].get(as_string=True)
-    params.experiment_year_month = global_PVs['Experiment_Year_Month'].get(as_string=True)
-    params.user_info_update = global_PVs['User_Info_Update'].get(as_string=True)
-
-
 def open_shutters(global_PVs, params):
     log.info(' ')
     log.info('  *** open_shutters')
@@ -128,14 +117,3 @@ def close_shutters(global_PVs, params):
         global_PVs['ShutterA_Close'].put(1, wait=True)
         time.sleep(3)
         log.info('  *** close_shutter A: Done!')
-
-
-def update_pixel_size(global_PVs, params):
-    '''Uses the camera model number to set the correct pixel size.
-    '''
-    if params.camera_ioc_prefix in ['7bm_pg1:', '7bm_pg2:', '7bm_pg3:']:
-        global_PVs['PixelSizeMicrons'].put(5.86, wait=True)
-        log.info('Camera pixel size for this camera = 5.86 microns.')
-    elif params.camera_ioc_prefix in ['7bm_pg4:', '7bmSP1']:
-        global_PVs['PixelSizeMicrons'].put(3.45, wait=True)
-        log.info('Camera pixel size for this camera = 3.45 microns.')
