@@ -40,31 +40,29 @@ from skimage.feature import register_translation
 def find_resolution(params):
     log.info('find resolution')
     global_PVs = aps7bm.init_general_PVs(params)
-    aps7bm.user_info_update(global_PVs, params)
-    params.file_name = None # so we don't run the flir._setup_hdf_writer 
+    
     try: 
-        if not scan.check_camera_IOC(global_PVs, params):
+        if not flir.check_camera_IOC(global_PVs, params):
             return False
 
         flir.init(global_PVs, params)
-        flir.set(global_PVs, params) 
-
         dark_field, white_field = flir.take_dark_and_white(global_PVs, params, True)
-        start_position = global_PVs["Motor_SampleX"].drive    
+
+        start_position = global_PVs["Motor_SampleX"].get()    
         log.info('  *** First image at X: %f mm' % (start_position))
         log.info('  *** acquire first image')
         sphere_0 = flir.take_image(global_PVs, params)
        
         second_image_x_position = start_position  + params.off_axis_position
         log.info('  *** Second image at X: %f mm' % (second_image_x_position))
-        global_PVs["Motor_SampleX"].move(second_image_x_position, wait=True, timeout=600.0)
+        global_PVs["Motor_SampleX"].put(second_image_x_position, wait=True, timeout=600.0)
         time.sleep(0.5)
         log.info('  *** acquire second image')
         sphere_1 = flir.take_image(global_PVs, params)
 
         log.info('  *** moving X stage back to %f mm position' % (start_position))
         aps7bm.close_shutters(global_PVs, params)
-        global_PVs["Motor_SampleX"].move(start_position, wait=True)
+        global_PVs["Motor_SampleX"].put(start_position, wait=True)
         
         sphere_0 = normalize(sphere_0, white_field, dark_field)
         sphere_1 = normalize(sphere_1, white_field, dark_field)
@@ -79,11 +77,9 @@ def find_resolution(params):
         log.info('  *** Calculated shift is ({0:6.4f}, {1:6.4f})'.format(shifts[0], shifts[1]))
         total_shift = np.hypot(shifts[0], shifts[1])
         log.info('  *** total shift {:6.4f} pixels'.format(total_shift))
-        pixel_size = float(global_PVs['PixelSizeMicrons'].get())
-        log.info('  *** pixel size = {:6.4f} microns'.format(pixel_size))
-        params.lens_magnification = abs(float(total_shift) * pixel_size / params.off_axis_position / 1e3)
-        if params.auto_magnification:
-            global_PVs['Lens_Magnification'].put(params.lens_magnification)
+        calc_image_pixel_size = params.off_axis_position * 1000 / total_shift 
+        log.info('  *** image pixel size {:6.4f} microns'.format(calc_image_pixel_size))
+        global_PVs['Actual_Pixel_Size'].put(calc_image_pixel_size)
         #Plot the shifted image
         sphere_1 = np.roll(sphere_1, (int(shifts[0]), int(shifts[1])), axis=(0,1))
         plt.figure(2)
@@ -91,46 +87,6 @@ def find_resolution(params):
         plt.colorbar()
         plt.title('Difference image after shift')
         plt.show() 
-
-        config.update_sphere(params)
-
-        return params.resolution
-
-    except  KeyError:
-        log.error('  *** Some PV assignment failed!')
-        pass
-
-
-def find_camera_rotation(params):
-    '''Find the rotation of the camera columns with respect to the rotation axis.
-    '''
-    pass
-
-
-def find_roll_and_rotation_axis_location(params):
-    global_PVs = aps7bm.init_general_PVs(params)
-    params.file_name = None # so we don't run the flir._setup_hdf_writer 
-
-    try: 
-        if not scan.check_camera_IOC(global_PVs, params):
-            return False
-
-            flir.init(global_PVs, params)
-            flir.set(global_PVs, params) 
-
-            sphere_0, sphere_180 = take_sphere_0_180(global_PVs, params)
-
-            cmass_0 = center_of_mass(sphere_0)
-            cmass_180 = center_of_mass(sphere_180)
-
-            params.rotation_axis_position = (cmass_180[1] + cmass_0[1]) / 2.0
-            log.info('  *** shift (center of mass): [%f, %f]' % ((cmass_180[0] - cmass_0[0]) ,(cmass_180[1] - cmass_0[1])))
-
-            params.roll = np.rad2deg(np.arctan((cmass_180[0] - cmass_0[0]) / (cmass_180[1] - cmass_0[1])))
-            log.info("  *** roll:%f" % (params.roll))
-            config.update_sphere(params)
-
-        return params.rotation_axis_position, params.roll
     except  KeyError:
         log.error('  *** Some PV assignment failed!')
         pass
@@ -145,7 +101,6 @@ def find_tilt_rotation_axis(params):
             return False
 
         flir.init(global_PVs, params)
-        flir.set(global_PVs, params) 
         sphere_0, sphere_180 = take_sphere_0_180(global_PVs, params)
         sphere_180_flip = sphere_180[...,::-1]
         
@@ -153,7 +108,7 @@ def find_tilt_rotation_axis(params):
         log.info('  *** Calculating shift.  This will take a minute.')
         shifts, error, phasediff = register_translation(sphere_0, sphere_180_flip, 10)
         log.info('  *** Calculated shift is ({0:6.4f}, {1:6.4f})'.format(shifts[0], shifts[1]))
-        overall_res = float(global_PVs['PixelSizeMicrons'].get()) / float(params.lens_magnification)
+        overall_res = float(global_PVs['Actual_Pixel_Size'].get())
         log.info(' *** Rotation axis off by {0:6.4} mm'.format(shifts[1] * overall_res / 2e3))
         log.info(' *** Move SampleX by {0:6.4} mm'.format(shifts[1] * overall_res / 2e3))
         log.info(' *** Shift in Y = {0:6.4} microns'.format(shifts[0] * overall_res))
@@ -176,7 +131,6 @@ def take_sphere_0_180(global_PVs, params):
     '''
     try:
         dark_field, white_field = flir.take_dark_and_white(global_PVs, params, True)
-        time.sleep(1)
         log.info('  *** Take first image of 0/180 degree set.')
         image_0 = flir.take_image(global_PVs, params)
         log.info('  *** *** DONE')
@@ -214,16 +168,6 @@ def template_match_images(image1, image2):
     log.info('Shift of (row, column) = ({0:d}, {1:d})'.format(row_shift, col_shift))
     #Now display an image showing how well the images match
     return row_shift, col_shift
-
-
-def center_of_mass(image):
-    
-    threshold_value = filters.threshold_otsu(image)
-    log.info("  *** threshold_value: %f" % (threshold_value))
-    labeled_foreground = (image < threshold_value).astype(int)
-    properties = regionprops(labeled_foreground, image)
-    return properties[0].weighted_centroid
-    # return properties[0].centroid
 
 
 def center_rotation_axis(global_PVs, params):
