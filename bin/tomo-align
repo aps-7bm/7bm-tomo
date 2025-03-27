@@ -10,11 +10,10 @@ import shutil
 import pathlib
 from datetime import datetime
 
-from tomo7bm import config, __version__
-from tomo7bm import log
-from tomo7bm import scan
-from tomo7bm import aps7bm
-from tomo7bm import align
+from tomo_align import config, __version__
+from tomo_align import log
+from tomo_align import aps7bm
+from tomo_align import align
 
 
 def init(args):

@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='tomo7bm',
+    name='tomo-align',
     version=open('VERSION').read().strip(),
     #version=__version__,
     author='Alan Kastengren',
