@@ -38,6 +38,16 @@ def run_res(args):
     align.find_resolution(args)
 
 
+def run_roll_correlation(args):
+    log.warning('finding camera roll by correlation')
+    align.find_roll_correlation(args)
+
+
+def run_focus(args):
+    log.warning('finding focus by taking focal stack')
+    align.find_focus(args)
+
+
 def main():
 
     parser = argparse.ArgumentParser()
@@ -46,11 +56,14 @@ def main():
                         version='%(prog)s {}'.format(__version__))
 
     sphere_params = config.SPHERE_PARAMS
+    focus_params = config.FOCUS_PARAMS
 
     cmd_parsers = [
         ('init',                 init,            (),                             "Create configuration file"),
-        ('find_res',             run_res,         sphere_params,                  "Find resolution. Use an alignment sphere"),
-        ('find_roll',            run_axis,        sphere_params,                  "Find roll. Use an alignment sphere"),
+        ('find_res',             run_res,         sphere_params,                  "Find resolution"),
+        ('find_roll',            run_axis,        sphere_params,                  "Find axis and roll by eye"),
+        ('find_roll_correlation',run_roll_correlation,        sphere_params,                  "Find roll by cross-correlation"),
+        ('find_focus',           run_focus,       focus_params,                   "Find focus"),
     ]
 
     subparsers = parser.add_subparsers(title="Commands", metavar='')

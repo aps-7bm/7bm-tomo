@@ -8,7 +8,7 @@ import numpy as np
 from skimage.registration import phase_cross_correlation
 import matplotlib.pyplot as plt
 import skimage.filters
-
+import epics
 from tomo_align import log
 from tomo_align import flir
 from tomo_align import aps7bm
@@ -22,7 +22,7 @@ def find_resolution(params):
         if not flir.check_camera_IOC(global_PVs, params):
             return False
 
-        flir.init(global_PVs, params)
+        #flir.init(global_PVs, params)
         dark_field, white_field = flir.take_dark_and_white(global_PVs, params, True)
 
         start_position = global_PVs["Motor_SampleX"].get()    
@@ -38,8 +38,8 @@ def find_resolution(params):
         sphere_1 = flir.take_image(global_PVs, params)
 
         log.info('  *** moving X stage back to %f mm position' % (start_position))
-        aps7bm.close_shutters(global_PVs, params)
-        global_PVs["Motor_SampleX"].put(start_position, wait=True)
+        aps7bm.close_shutters(global_PVs, params, False)
+        global_PVs["Motor_SampleX"].put(start_position)
         
         sphere_0 = normalize(sphere_0, white_field, dark_field)
         sphere_1 = normalize(sphere_1, white_field, dark_field)
@@ -78,7 +78,6 @@ def find_tilt_rotation_axis(params):
         if not flir.check_camera_IOC(global_PVs, params):
             return False
 
-        flir.init(global_PVs, params)
         sphere_0, sphere_180 = take_sphere_0_180(global_PVs, params)
         sphere_180_flip = sphere_180[...,::-1]
         
@@ -103,6 +102,41 @@ def find_tilt_rotation_axis(params):
         return 0, 0
     except  KeyError:
         log.error('  *** Some PV assignment failed!')
+    finally:
+        aps7bm.close_shutters(global_PVs, params, False)
+
+
+def find_roll_correlation(params, side_fraction = 0.1):
+    global_PVs = aps7bm.init_general_PVs(params)
+    params.file_name = None # so we don't run the flir._setup_hdf_writer 
+
+    try: 
+        if not flir.check_camera_IOC(global_PVs, params):
+            return False
+
+        sphere_0, sphere_180 = take_sphere_0_180(global_PVs, params)
+        sphere_180_flip = sphere_180[...,::-1]
+        #Take strips on the left and right sides of the images
+        side_columns = int(sphere_0.shape[1]/side_fraction)
+        side_spacing = sphere_0.shape[1] - side_columns
+        sphere_0_left = sphere_0[:,:side_spacing]
+        sphere_180_left = sphere_180_flip[:,:side_spacing]
+        sphere_0_right = sphere_0[:,-side_spacing:]
+        sphere_180_right = sphere_180_flip[:,-side_spacing:]
+        #Find pixel shift between images on each side
+        log.info('  *** Calculating shift for left images.  This will take a minute.')
+        left_shifts, left_error, left_phasediff = phase_cross_correlation(sphere_0_left, 
+                                                    sphere_180_left, normalization=None)
+        log.info(f'  *** Calculated shift for left images is ({left_shifts[0]:6.4f}, {left_shifts[1]:6.4f})')
+        right_shifts, right_error, right_phasediff = phase_cross_correlation(sphere_0_right, 
+                                                    sphere_180_right, normalization=None)
+        log.info(f'  *** Calculated shift for right images is ({right_shifts[0]:6.4f}, {right_shifts[1]:6.4f})')
+        implied_angle = np.arctan((left_shifts[1] - right_shifts[1]) / side_spacing)
+        log.info(f'  *** Implied camera roll = {implied_angle * 1e3:7.2f} mrad')
+    except  KeyError:
+        log.error('  *** Some PV assignment failed!')
+    finally:
+        aps7bm.close_shutters(global_PVs, params, False)
 
 
 def take_sphere_0_180(global_PVs, params):
@@ -122,56 +156,10 @@ def take_sphere_0_180(global_PVs, params):
         log.info('  *** Move stage back.')
         global_PVs['Motor_SampleRot'].move(-180, relative=True, wait=False)
     finally:
-        aps7bm.close_shutters(global_PVs, params)
+        aps7bm.close_shutters(global_PVs, params, False)
     image_0 = normalize(image_0, white_field, dark_field)
     image_180 = normalize(image_180, white_field, dark_field)
     return image_0, image_180
-
-
-def template_match_images(image1, image2):
-    '''Determine shift required to make image2 match image1.
-    '''
-    #Make images floats, ignoring first row (bad from camera)
-    image1 = image1.astype(np.float64)
-    image2 = image2.astype(np.float64)
-    #Make template sizes and shapes
-    row_shift = image1.shape[0]//2
-    col_shift = image1.shape[1]//2
-    padded_image1 = np.pad(image1, ((row_shift, row_shift), (col_shift, col_shift)))
-    correlation_matrix = match_template(padded_image1, image2)
-    print('Maximum correlation = {0:6.4f}'.format(np.max(correlation_matrix)))
-    print(correlation_matrix.shape)
-    log.info('Maximum correlation = {0:6.4f}'.format(np.max(correlation_matrix)))
-    shift_tuple = np.unravel_index(np.argmax(correlation_matrix),correlation_matrix.shape)
-    row_shift = shift_tuple[0] - row_shift
-    col_shift = shift_tuple[1] - col_shift
-    log.info('Shift of (row, column) = ({0:d}, {1:d})'.format(row_shift, col_shift))
-    #Now display an image showing how well the images match
-    return row_shift, col_shift
-
-
-def center_rotation_axis(global_PVs, params):
-
-    nCol = global_PVs['Cam1_SizeX_RBV'].get()
-    
-    log.info(' ')
-    log.info('  *** centering rotation axis')
-
-    current_axis_position = global_PVs["Motor_SampleX"].drive
-    log.info('  *** current axis position: %f' % current_axis_position)
-    time.sleep(.5)
-    correction = (((nCol / 2.0) - variableDict['AxisLocation']) * variableDict['DetectorResolution'] / 1000.0) + current_axis_position
-    log.info('  *** correction: %f' % correction)
-
-    log.info('  *** moving to: %f (mm)' % correction)
-    global_PVs["Motor_SampleX"].put(correction, wait=True, timeout=600.0)
-
-    log.info('  *** re-setting position from %f (mm) to 0 (mm)' % correction)
-    global_PVs["Motor_SampleX_SET"].put(1, wait=True, timeout=5.0)
-    time.sleep(.5)
-    global_PVs["Motor_SampleX"].put(0, wait=True, timeout=5.0)
-    time.sleep(.5)
-    global_PVs["Motor_SampleX_SET"].put(0, wait=True, timeout=5.0)
 
 
 def normalize(im, bright, dark, dark_cutoff=1e-6,bright_clip=1):
@@ -181,7 +169,43 @@ def normalize(im, bright, dark, dark_cutoff=1e-6,bright_clip=1):
     trans[trans > bright_clip] = bright_clip
     #Do an unsharp mask
     return skimage.filters.unsharp_mask(trans, 50, 1.0) - trans
-    return 1-trans
-    return -np.log(trans)
 
+
+def find_focus(params):
+    log.info('find focus')
+    global_PVs = aps7bm.init_general_PVs(params)
+    
+    try: 
+        if not flir.check_camera_IOC(global_PVs, params):
+            return False
+
+        dark_field, white_field = flir.take_dark_and_white(global_PVs, params, True)
+        focus_motor = epics.Motor(params.focus_motor_pv)
+        orig_focus = focus_motor.get_position()
+        num_images = int(np.round(2 * params.focal_range / params.focal_step)) + 1
+        focal_stack_positions = np.linspace(-params.focal_range, params.focal_range, num_images)
+        focal_stack_positions += orig_focus
+        focal_stack_data = np.zeros(num_images, dark_field.shape[0], dark_field.shape[1])
+        if not (focus_motor.within_limits(focal_stack_positions[0]) 
+                and focus_motor.within_limits(focal_stack_positions[-1])):
+            raise ValueError
+        for i in range(num_images): 
+            focus_motor.move(focal_stack_positions[i])
+            focal_stack_data[i,...] = flir.take_image(global_PVs, params)
+        
+        #We now have the focal stack.  We can analyze it to find the optimum focus
+        focal_metric = np.zeros(focal_stack_positions.shape[0])
+        for i in range(focal_metric.shape[0]):
+            norm_im = normalize(focal_stack[i,...], white_field, dark_field)
+            focal_metric[i] = np.std(norm_im, dtype=np.float64) / np.mean(norm_im, dtype=np.float64) 
+        plt.plot(focal_stack_positions, focal_metric, '.-')
+        plt.xlabel('Focus motor, mm')
+        plt.ylabel('Focal metric')
+        plt.show()
+        best_focus = focal_stack_positions[np.argmax(focal_metric)]
+        log.info(f'  *** Best focus at {best_focus:7.3f} mm')
+        focus_motor.move(best_focus)
+    except  KeyError:
+        log.error('  *** Some PV assignment failed!')
+        pass
 

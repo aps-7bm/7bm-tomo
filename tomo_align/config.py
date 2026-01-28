@@ -52,10 +52,26 @@ SECTIONS['detector'] = {
         'help': "Off axis horizontal position of the sphere used to calculate resolution (mm)"},
         }
 
+SECTIONS['focus'] = {
+    'focus-motor-pv':{
+        'type': str,
+        'default': '7bmb:m35.VAL',
+        'help': 'PV for the focus motor'},
+    'focus-range': {
+        'default': 0.1,
+        'type': float,
+        'help': "Distance on either side of current focus to search (mm)"},
+    'focus-step': {
+        'default': 0.005,
+        'type': float,
+        'help': "Step between focus images (mm)"},
+        }
+
+
 
 SPHERE_PARAMS = ('detector', )
-
-NICE_NAMES = ('general', 'detector',)
+FOCUS_PARAMS = ('detector', 'focus')
+NICE_NAMES = ('general', 'detector', 'focus')
 
 
 def get_config_name():

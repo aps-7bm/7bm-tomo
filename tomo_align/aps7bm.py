@@ -108,12 +108,13 @@ def open_shutters(global_PVs, params):
         log.info('  *** open_shutter A: Done!')
  
 
-def close_shutters(global_PVs, params):
+def close_shutters(global_PVs, params, wait_for_shutter=True):
     log.info(' ')
     log.info('  *** close_shutters')
     if params.testing == True:
         log.warning('  *** testing mode - shutters are deactivated during the scans !!!!')
     else:
-        global_PVs['ShutterA_Close'].put(1, wait=True)
-        time.sleep(3)
+        global_PVs['ShutterA_Close'].put(1, wait=wait_for_shutter)
+        if wait_for_shutter:
+            time.sleep(3)
         log.info('  *** close_shutter A: Done!')
