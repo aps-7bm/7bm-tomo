@@ -104,7 +104,7 @@ def open_shutters(global_PVs, params):
         log.warning('  *** testing mode - shutters are deactivated during the scans !!!!')
     else:
         global_PVs['ShutterA_Open'].put(1, wait=True)
-        time.sleep(3)
+        time.sleep(4)
         log.info('  *** open_shutter A: Done!')
  
 

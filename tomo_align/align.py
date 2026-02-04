@@ -182,22 +182,21 @@ def find_focus(params):
         dark_field, white_field = flir.take_dark_and_white(global_PVs, params, True)
         focus_motor = epics.Motor(params.focus_motor_pv)
         orig_focus = focus_motor.get_position()
-        num_images = int(np.round(2 * params.focal_range / params.focal_step)) + 1
-        focal_stack_positions = np.linspace(-params.focal_range, params.focal_range, num_images)
+        num_images = int(np.round(2 * params.focus_range / params.focus_step)) + 1
+        focal_stack_positions = np.linspace(-params.focus_range, params.focus_range, num_images)
         focal_stack_positions += orig_focus
-        focal_stack_data = np.zeros(num_images, dark_field.shape[0], dark_field.shape[1])
+        focal_metric = np.zeros(focal_stack_positions.shape[0])
+        #focal_stack_data = np.zeros((num_images, dark_field.shape[0], dark_field.shape[1]))
         if not (focus_motor.within_limits(focal_stack_positions[0]) 
                 and focus_motor.within_limits(focal_stack_positions[-1])):
             raise ValueError
         for i in range(num_images): 
             focus_motor.move(focal_stack_positions[i])
-            focal_stack_data[i,...] = flir.take_image(global_PVs, params)
-        
-        #We now have the focal stack.  We can analyze it to find the optimum focus
-        focal_metric = np.zeros(focal_stack_positions.shape[0])
-        for i in range(focal_metric.shape[0]):
-            norm_im = normalize(focal_stack[i,...], white_field, dark_field)
+            log.info(f'  *** focal stack image {i}/{num_images}')
+            temp_image = flir.take_image(global_PVs, params)
+            norm_im = (temp_image - dark_field) / (white_field / dark_field)
             focal_metric[i] = np.std(norm_im, dtype=np.float64) / np.mean(norm_im, dtype=np.float64) 
+             
         plt.plot(focal_stack_positions, focal_metric, '.-')
         plt.xlabel('Focus motor, mm')
         plt.ylabel('Focal metric')
@@ -208,4 +207,6 @@ def find_focus(params):
     except  KeyError:
         log.error('  *** Some PV assignment failed!')
         pass
+    finally:
+        aps7bm.close_shutters(global_PVs, params, False)
 
