@@ -116,13 +116,14 @@ def find_roll_correlation(params, side_fraction = 0.1):
 
         sphere_0, sphere_180 = take_sphere_0_180(global_PVs, params)
         sphere_180_flip = sphere_180[...,::-1]
+        import pdb; pdb.set_trace()
         #Take strips on the left and right sides of the images
-        side_columns = int(sphere_0.shape[1]/side_fraction)
+        side_columns = int(sphere_0.shape[1]*side_fraction)
         side_spacing = sphere_0.shape[1] - side_columns
-        sphere_0_left = sphere_0[:,:side_spacing]
-        sphere_180_left = sphere_180_flip[:,:side_spacing]
-        sphere_0_right = sphere_0[:,-side_spacing:]
-        sphere_180_right = sphere_180_flip[:,-side_spacing:]
+        sphere_0_left = sphere_0[:,:side_columns]
+        sphere_180_left = sphere_180_flip[:,:side_columns]
+        sphere_0_right = sphere_0[:,-side_columns:]
+        sphere_180_right = sphere_180_flip[:,-side_columns:]
         #Find pixel shift between images on each side
         log.info('  *** Calculating shift for left images.  This will take a minute.')
         left_shifts, left_error, left_phasediff = phase_cross_correlation(sphere_0_left, 
@@ -133,6 +134,7 @@ def find_roll_correlation(params, side_fraction = 0.1):
         log.info(f'  *** Calculated shift for right images is ({right_shifts[0]:6.4f}, {right_shifts[1]:6.4f})')
         implied_angle = np.arctan((left_shifts[1] - right_shifts[1]) / side_spacing)
         log.info(f'  *** Implied camera roll = {implied_angle * 1e3:7.2f} mrad')
+        log.info(f'  *** Implied camera roll = {np.degrees(implied_angle):7.5f} deg')
     except  KeyError:
         log.error('  *** Some PV assignment failed!')
     finally:
