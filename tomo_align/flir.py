@@ -16,18 +16,6 @@ from tomo_align import log
 DetectorIdle = 0
 DetectorAcquire = 1
 
-def init(global_PVs, params):
-    '''Performs initialization of camera.
-    Takes a frame to make sure we have frame data.
-    '''
-    log.info('  *** init Point Grey camera')
-    global_PVs['Cam1_TriggerMode'].put(0, wait=True)    # 
-    global_PVs['Cam1_ImageMode'].put('Single', wait=True)
-    global_PVs['Cam1_Acquire'].put(DetectorAcquire)
-    aps7bm.wait_pv(global_PVs['Cam1_Acquire'], DetectorAcquire, 2)
-    log.info('  *** init Point Grey camera: Done!')
-
-
 def check_camera_IOC(global_PVs, params):
     detector_sn = global_PVs['Cam1_SerialNumber'].get()
     if ((detector_sn == None) or (detector_sn == 'Unknown')):

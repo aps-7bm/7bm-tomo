@@ -22,7 +22,6 @@ def find_resolution(params):
         if not flir.check_camera_IOC(global_PVs, params):
             return False
 
-        #flir.init(global_PVs, params)
         dark_field, white_field = flir.take_dark_and_white(global_PVs, params, True)
 
         start_position = global_PVs["Motor_SampleX"].get()    
@@ -116,7 +115,6 @@ def find_roll_correlation(params, side_fraction = 0.1):
 
         sphere_0, sphere_180 = take_sphere_0_180(global_PVs, params)
         sphere_180_flip = sphere_180[...,::-1]
-        import pdb; pdb.set_trace()
         #Take strips on the left and right sides of the images
         side_columns = int(sphere_0.shape[1]*side_fraction)
         side_spacing = sphere_0.shape[1] - side_columns

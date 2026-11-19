@@ -8,7 +8,6 @@ import configparser
 from collections import OrderedDict
 
 from tomo_align import log
-from tomo_align import util
 from tomo_align import __version__
 
 home = os.path.expanduser("~")
@@ -71,7 +70,6 @@ SECTIONS['focus'] = {
 
 SPHERE_PARAMS = ('detector', )
 FOCUS_PARAMS = ('detector', 'focus')
-NICE_NAMES = ('general', 'detector', 'focus')
 
 
 def get_config_name():
@@ -154,13 +152,6 @@ class Params(object):
         self.add_parser_args(parser)
         return parser
 
-    def get_defaults(self):
-        parser = argparse.ArgumentParser()
-        self.add_arguments(parser)
-
-        return parser.parse_args('')
-
-
 def write(config_file, args=None, sections=None):
     """
     Write *config_file* with values from *args* if they are specified,
@@ -186,52 +177,3 @@ def write(config_file, args=None, sections=None):
 
     with open(config_file, 'w') as f:
         config.write(f)
-
-
-def log_values(args):
-    """Log all values set in the args namespace.
-
-    Arguments are grouped according to their section and logged alphabetically
-    using the DEBUG log level thus --verbose is required.
-    """
-    args = args.__dict__
-
-    log.warning('tomo scan status start')
-    for section, name in zip(SECTIONS, NICE_NAMES):
-        entries = sorted((k for k in args.keys() if k.replace('_', '-') in SECTIONS[section]))
-
-        # print('log_values', section, name, entries)
-        if entries:
-            log.info(name)
-
-            for entry in entries:
-                value = args[entry] if args[entry] is not None else "-"
-                log.info("  {:<16} {}".format(entry, value))
-
-    log.warning('tomo scan status end')
-
-
-def update_config(args):
-       # update tomo2bm.conf
-        sections = SCAN_PARAMS
-        write(args.config, args=args, sections=sections)
-
-        # copy tomo2bm.conf to the raw data directory with a unique name (sample_name.conf)
-        log.info(args.file_path)
-        log.info(args.file_name)
-        log_fname = str(Path.joinpath(Path(args.file_path), args.file_name + '.conf'))
-        try:
-            shutil.copyfile(args.config, log_fname)
-            log.info('  *** copied %s to %s ' % (args.config, log_fname))
-        except:
-            log.error('  *** attempt to copy %s to %s failed' % (args.config, log_fname))
-            pass
-        log.warning(' *** command to repeat the scan: tomo scan --config {:s}'.format(log_fname))
-
-
-def update_sphere(args):
-       # update tomo2bm.conf
-        sections = SPHERE_PARAMS
-        # if 'sphere' in  sections:
-        #     print("DDDDDDD")
-        write(args.config, args=args, sections=sections)
